@@ -1,5 +1,5 @@
 const userInfo = require('../models/userInfoModel')
-const {generateHash} = require('../utils/passwordProcess')
+const {generateHash, passwordCheck} = require('../utils/passwordProcess')
 
 const signUp = async(req,res) =>{
     try{
@@ -46,4 +46,25 @@ const signUp = async(req,res) =>{
     }
 }
 
-module.exports = {signUp}
+const login = async (req,res) =>{
+
+    const {identifier, password} = req.body;
+
+    const user = await userInfo.findOne({$or: [{username: identifier}, {email: identifier}]});
+
+    
+    if(!user){
+        return res.status(404).json({status:false, message:"User not found"});
+    }
+
+    const isMatched = await passwordCheck(password, user.password);
+
+    if(isMatched){
+        return res.status(200).json({status:true, message:"Login successful"});
+    }else{
+        return res.status(401).json({status:false, message:"Password does not match"});
+    }
+
+}
+
+module.exports = {signUp, login}

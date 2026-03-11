@@ -9,5 +9,14 @@ const generateHash = async(plainPassword) =>{
     }
 }
 
+const passwordCheck = async(plainPassword, hashedPassword) =>{
+    try{
+        const isMatched = bcrypt.compare(plainPassword, hashedPassword);
+        return isMatched; 
+    }catch(err){
+        console.log("Password comparision failed");
+    }
+}
 
-module.exports = {generateHash}
+
+module.exports = {generateHash, passwordCheck}
