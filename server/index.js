@@ -1,4 +1,5 @@
 const express = require('express');
+const bodyParser = require('body-parser')
 
 require('dotenv').config();
 const connectDB = require('./conn');
@@ -7,6 +8,10 @@ const authRoutes = require('./routes/authRoutes')
 const app = express();
 
 PORT = process.env.PORT || 5001;
+
+app.use(bodyParser.json());
+
+app.use(bodyParser.urlencoded({ extended: true }));
 
 connectDB();
 
