@@ -1,5 +1,6 @@
 const userInfo = require('../models/userInfoModel')
 const {generateHash, passwordCheck} = require('../utils/passwordProcess')
+const {generateToken} = require('../utils/generateToken')
 
 const signUp = async(req,res) =>{
     try{
@@ -37,7 +38,8 @@ const signUp = async(req,res) =>{
         })
 
         if(user){
-            return res.status(201).json({status:true, message:"User created successfully"});
+            const tokens = generateToken(user._id)
+            return res.status(201).json({status:true, message:"User created successfully",tokens:tokens});
         }else{
             return res.status(500).json({status:false, message:"Unable to create user"});
         }
@@ -60,7 +62,9 @@ const login = async (req,res) =>{
     const isMatched = await passwordCheck(password, user.password);
 
     if(isMatched){
-        return res.status(200).json({status:true, message:"Login successful"});
+        
+        const tokens = await generateToken(user._id)
+        return res.status(200).json({status:true, message:"Login successful", tokens:tokens});
     }else{
         return res.status(401).json({status:false, message:"Password does not match"});
     }
