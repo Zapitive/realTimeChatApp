@@ -1,6 +1,7 @@
-const userInfo = require('../models/userInfoModel')
-const {generateHash, passwordCheck} = require('../utils/passwordProcess')
-const {generateToken} = require('../utils/generateToken')
+const userInfo = require('../models/userInfoModel');
+const RefreshToken = require('../models/refreshTokenModel')
+const {generateHash, passwordCheck} = require('../utils/passwordProcess');
+const {generateToken} = require('../utils/generateToken');
 
 const signUp = async(req,res) =>{
     try{
@@ -38,8 +39,13 @@ const signUp = async(req,res) =>{
         })
 
         if(user){
-            const tokens = generateToken(user._id)
-            return res.status(201).json({status:true, message:"User created successfully",tokens:tokens});
+            const {token, refreshToken, hashedToken} = await generateToken(user._id);
+            await RefreshToken.create({
+                userId: user._id,
+                refreshToken: hashedToken,
+            });
+
+            return res.status(201).json({status:true, message:"User created successfully",token: token, refreshToken: refreshToken});
         }else{
             return res.status(500).json({status:false, message:"Unable to create user"});
         }
@@ -62,9 +68,13 @@ const login = async (req,res) =>{
     const isMatched = await passwordCheck(password, user.password);
 
     if(isMatched){
-        
-        const tokens = await generateToken(user._id)
-        return res.status(200).json({status:true, message:"Login successful", tokens:tokens});
+        const {token, refreshToken, hashedToken} = await generateToken(user._id);
+        await RefreshToken.create({
+            userId: user._id,
+            refreshToken: hashedToken,
+        });
+
+        return res.status(200).json({status:true, message:"Login successful",token: token, refreshToken: refreshToken});
     }else{
         return res.status(401).json({status:false, message:"Password does not match"});
     }

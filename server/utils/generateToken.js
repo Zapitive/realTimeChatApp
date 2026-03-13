@@ -6,10 +6,12 @@ const generateToken = async (userId) =>{
         const token = await jwt.sign(
             {id:userId},
             process.env.JWT_SECRET_KEY,
-            {expiresIn:'20m'}
+            {expiresIn:'1m'}
         )
-        const rtoken = crypto.randomBytes(64).toString('hex')
-        return {token: token, rtoken: rtoken}
+        const refreshToken = crypto.randomBytes(64).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+        return {token: token, refreshToken: refreshToken, hashedToken: hashedToken}
     }catch(err){
         console.log(err)
     }

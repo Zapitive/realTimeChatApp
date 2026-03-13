@@ -3,7 +3,8 @@ const bodyParser = require('body-parser')
 
 require('dotenv').config();
 const connectDB = require('./conn');
-const authRoutes = require('./routes/authRoutes')
+const authRoutes = require('./routes/authRoutes');
+const { authenticateToken } = require('./middlewares/authMiddleware');
 
 const app = express();
 
@@ -15,11 +16,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 connectDB();
 
-app.get('/',(req,res)=>{
-    res.send('App running successfully')
-})
 
 app.use('/api/auth',authRoutes)
+app.get('/api/protected',authenticateToken,(req,res)=>{
+    res.send(req.user.id)
+})
 
 try{
     app.listen(PORT, ()=>{
