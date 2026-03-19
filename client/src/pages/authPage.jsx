@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../context/authContext';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
-    username: ''
   });
   const [showPassword, setShowPassword] = useState(false);
+
+  const {setAccessToken} = useAuth();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -18,14 +22,55 @@ export default function AuthPage() {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e) => {
+    try{
+      e.preventDefault();
+        if(isLogin){
+            const response = await axios.post(
+                '/api/auth/login',{
+                    identifier: formData.username,
+                    password: formData.password
+                }
+            ).catch(function (error){
+              if (error.response){
+                console.log(error.response.status);
+                console.log(error.response.data.message);
+              }
+            });
+            console.log(response.status);
+            console.log(response.data.message);
+            setAccessToken(response.data.token);
+        }else{
+          if (formData.confirmPassword === formData.password){
+            const response = await axios.post(
+                '/api/auth/register',{
+                    username: formData.username,
+                    email: formData.email,
+                    password: formData.password
+                }
+            ).catch(function (error){
+              if (error.response){
+                console.log(error.response.status);
+                console.log(error.response.data.message);
+              }
+            });
+            console.log(response.status);
+            console.log(response.data.message);
+            setAccessToken(response.data.token);
+          }else{
+            console.log("Password does not match");
+          }
+        }
+    }catch(err){
+        console.log(err)
+    }
+    
     console.log('Form submitted:', isLogin ? 'Login' : 'Register', formData);
   };
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
-    setFormData({ email: '', password: '', confirmPassword: '', username: '' });
+    setFormData({ username: '', email: '', password: '', confirmPassword: ''});
   };
 
   return (
