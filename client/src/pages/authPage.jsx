@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useAuth } from '../context/authContext';
+import { useAxiosPrivate } from '../api/axiosPrivate';
+import { useNavigate } from 'react-router-dom';
 
 export default function AuthPage() {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     username: '',
@@ -13,6 +15,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const {setAccessToken} = useAuth();
+  const api = useAxiosPrivate();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -26,34 +29,28 @@ export default function AuthPage() {
     try{
       e.preventDefault();
         if(isLogin){
-            const response = await axios.post(
+            const response = await api.post(
                 '/api/auth/login',{
                     identifier: formData.username,
                     password: formData.password
+                },{
+                  withCredentials:true
                 }
-            ).catch(function (error){
-              if (error.response){
-                console.log(error.response.status);
-                console.log(error.response.data.message);
-              }
-            });
+            )
             console.log(response.status);
             console.log(response.data.message);
             setAccessToken(response.data.token);
         }else{
           if (formData.confirmPassword === formData.password){
-            const response = await axios.post(
+            const response = await api.post(
                 '/api/auth/register',{
                     username: formData.username,
                     email: formData.email,
                     password: formData.password
+                },{
+                  withCredentials:true
                 }
-            ).catch(function (error){
-              if (error.response){
-                console.log(error.response.status);
-                console.log(error.response.data.message);
-              }
-            });
+            )
             console.log(response.status);
             console.log(response.data.message);
             setAccessToken(response.data.token);
@@ -61,11 +58,10 @@ export default function AuthPage() {
             console.log("Password does not match");
           }
         }
+        navigate('/chats');
     }catch(err){
-        console.log(err)
+        console.log(err.status)
     }
-    
-    console.log('Form submitted:', isLogin ? 'Login' : 'Register', formData);
   };
 
   const toggleMode = () => {
