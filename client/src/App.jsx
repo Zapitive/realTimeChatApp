@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './App.css';
-import AuthPage from './pages/AuthPage';
-import ChatsPage from './pages/ChatsPage';
+import AuthPage from './pages/authPage';
+import ChatsPage from './pages/chatsPage';
 
 function App() {
 

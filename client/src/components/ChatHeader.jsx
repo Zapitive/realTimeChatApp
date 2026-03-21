@@ -1,0 +1,29 @@
+export default function ChatHeader({ user, onBackClick }) {
+  return (
+    <div className="p-6 border-b border-white/10 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBackClick}
+          className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white mr-2"
+        >
+          ←
+        </button>
+        <span className="text-4xl">{user.avatar}</span>
+        <div>
+          <h2 className="text-white font-semibold text-lg">{user.name}</h2>
+          <p
+            className={`text-xs ${
+              user.status === 'online'
+                ? 'text-green-400'
+                : user.status === 'away'
+                ? 'text-yellow-400'
+                : 'text-gray-400'
+            }`}
+          >
+            {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
