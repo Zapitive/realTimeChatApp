@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './App.css';
-import AuthPage from './pages/authPage';
-import ChatApp from './pages/chatsPage';
+import AuthPage from './pages/AuthPage';
+import ChatsPage from './pages/ChatsPage';
 
 function App() {
 
@@ -11,7 +11,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path='/' element={<AuthPage/>} />
-          <Route path='/chats' element={<ChatApp/>} />
+          <Route path='/chats' element={<ChatsPage/>} />
         </Routes>
       </BrowserRouter>
     </>

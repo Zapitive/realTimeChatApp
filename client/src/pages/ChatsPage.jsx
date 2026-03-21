@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
-export default function ChatApp() {
-  const [selectedUser, setSelectedUser] = useState(1);
+export default function ChatsPage() {
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [messages, setMessages] = useState({
     1: [
       { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
@@ -23,19 +24,19 @@ export default function ChatApp() {
   const users = [
     { id: 1, name: 'Sarah Johnson', status: 'online', avatar: '👩‍💼', lastMessage: 'That sounds amazing! Tell me more 😊' },
     { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
-    { id: 3, name: 'Emma Davis', status: 'away', avatar: '👩‍🔬', lastMessage: 'Did you see the latest update?' },
+    { id: 3, name: 'Emma Davis', status: 'online', avatar: '👩‍🔬', lastMessage: 'Did you see the latest update?' },
     { id: 4, name: 'James Wilson', status: 'offline', avatar: '👨‍🎨', lastMessage: 'Great work on the design!' },
     { id: 5, name: 'Olivia Brown', status: 'online', avatar: '👩‍🎓', lastMessage: 'See you tomorrow!' },
     { id: 6, name: 'Michael Lee', status: 'offline', avatar: '👨‍🏫', lastMessage: 'Thanks for the feedback' },
   ];
 
-  const currentUser = users.find(u => u.id === selectedUser);
-  const currentMessages = messages[selectedUser] || [];
+  const currentUser = selectedUser ? users.find(u => u.id === selectedUser) : null;
+  const currentMessages = selectedUser ? (messages[selectedUser] || []) : [];
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (inputMessage.trim()) {
+    if (inputMessage.trim() && selectedUser) {
       const newMessage = {
         id: (currentMessages.length || 0) + 1,
         sender: 'You',
@@ -54,7 +55,6 @@ export default function ChatApp() {
   const getStatusColor = (status) => {
     switch(status) {
       case 'online': return 'bg-green-500';
-      case 'away': return 'bg-yellow-500';
       case 'offline': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
@@ -91,13 +91,33 @@ export default function ChatApp() {
         }
       `}</style>
 
+      {/* Mobile Overlay */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm md:hidden z-30"
+          onClick={() => setShowSidebar(false)}
+        ></div>
+      )}
+
       {/* Left Sidebar - Users List */}
-      <div className="w-full sm:w-80 backdrop-blur-xl bg-white/5 border-r border-white/10 flex flex-col h-screen overflow-hidden">
+      <div
+        className={`fixed md:relative w-full sm:w-80 backdrop-blur-xl bg-white/5 border-r border-white/10 flex flex-col h-screen overflow-hidden z-40 transition-all duration-300 ${
+          showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
         {/* Header */}
         <div className="p-6 border-b border-white/10">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            Messages
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent">
+              Messages
+            </h1>
+            <button
+              onClick={() => setShowSidebar(false)}
+              className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
           <div className="relative">
             <input
               type="text"
@@ -116,7 +136,10 @@ export default function ChatApp() {
             {filteredUsers.map((user) => (
               <button
                 key={user.id}
-                onClick={() => setSelectedUser(user.id)}
+                onClick={() => {
+                  setSelectedUser(user.id);
+                  setShowSidebar(false);
+                }}
                 className={`w-full text-left p-4 rounded-xl transition-all duration-300 transform hover:scale-105 relative group ${
                   selectedUser === user.id
                     ? 'bg-white/15 border border-purple-400/50 shadow-lg shadow-purple-500/20'
@@ -139,46 +162,36 @@ export default function ChatApp() {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 flex gap-3">
-          <button className="flex-1 py-2 px-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-gray-300 hover:text-white transition-all duration-300 text-sm font-medium">
-            ⚙️
-          </button>
-          <button className="flex-1 py-2 px-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all duration-300 text-sm font-medium">
-            + New Chat
-          </button>
-        </div>
       </div>
 
       {/* Right Side - Chat Area */}
       <div className="flex-1 flex flex-col h-screen backdrop-blur-xl bg-white/5 border-l border-white/10 overflow-hidden">
-        {currentUser ? (
+        {selectedUser ? (
           <>
             {/* Chat Header */}
             <div className="p-6 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setShowSidebar(true);
+                  }}
+                  className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white mr-2"
+                >
+                  ←
+                </button>
                 <span className="text-4xl">{currentUser.avatar}</span>
                 <div>
                   <h2 className="text-white font-semibold text-lg">{currentUser.name}</h2>
                   <p className={`text-xs ${
-                    currentUser.status === 'online' ? 'text-green-400' : 
-                    currentUser.status === 'away' ? 'text-yellow-400' : 
+                    currentUser.status === 'online' ? 'text-green-400' :
                     'text-gray-400'
                   }`}>
                     {currentUser.status.charAt(0).toUpperCase() + currentUser.status.slice(1)}
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white">
-                  ☎️
-                </button>
-                <button className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white">
-                  📹
-                </button>
-                <button className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white">
-                  ⋮
-                </button>
-              </div>
+              
             </div>
 
             {/* Messages Area */}
@@ -207,12 +220,6 @@ export default function ChatApp() {
             {/* Message Input */}
             <div className="p-6 border-t border-white/10">
               <form onSubmit={handleSendMessage} className="flex gap-3">
-                <button
-                  type="button"
-                  className="p-3 hover:bg-white/10 rounded-lg transition-all duration-300 text-gray-300 hover:text-white"
-                >
-                  📎
-                </button>
                 <input
                   type="text"
                   value={inputMessage}
@@ -230,9 +237,15 @@ export default function ChatApp() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 flex flex-col items-center justify-center">
             <div className="text-center">
-              <p className="text-gray-400 text-lg">Select a user to start chatting</p>
+              <p className="text-gray-400 text-lg mb-6">Select a user to start chatting</p>
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="md:hidden px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all duration-300 font-semibold"
+              >
+                Open Messages
+              </button>
             </div>
           </div>
         )}
