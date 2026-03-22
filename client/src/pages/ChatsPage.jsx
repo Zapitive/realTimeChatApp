@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import UserSidebar from '../components/UserSidebar';
 import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
+import { useAxiosPrivate } from '../api/axiosPrivate';
 
 export default function ChatsPage() {
+
+    const api = useAxiosPrivate();
     // State Management
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false)
     const [selectedUser, setSelectedUser] = useState(null);
     const [showSidebar, setShowSidebar] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
@@ -91,12 +97,41 @@ export default function ChatsPage() {
     //Searching users according to email or username
     const handleSearchChange = async(query) => {
         // setSearchQuery(e.target.value);
-        console.log(query);
+        try{
+            if(!query) return;
+            setSearchLoading(true);
+            const response = await api.get(
+                `/api/user/searchUser`,{
+                    params: { searchValue: query },
+                    withCredentials:true
+                }
+            );
+            if (response) {
+                setSearchLoading(false);
+                setSearchResults(response.data.users);
+            }
+        }catch(err){
+            console.log(err)
+        }
+        
     };
 
     const handleInputChange = (e) => {
         setInputMessage(e.target.value);
     };
+
+
+    
+
+    // debouncing for rate limiting
+    useEffect(()=>{
+        const timer = setTimeout(()=>{
+            handleSearchChange(searchQuery);
+        },1000);
+
+        return () => clearTimeout(timer);
+
+    },[searchQuery]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex overflow-hidden relative">
@@ -137,8 +172,11 @@ export default function ChatsPage() {
             filteredUsers={filteredUsers}
             selectedUser={selectedUser}
             showSidebar={showSidebar}
+            searchResults={searchResults}
+            searchLoading={searchLoading}
+            searchQuery={searchQuery}
             getStatusColor={getStatusColor}
-            onSearchChange={handleSearchChange}
+            setSearchQuery={setSearchQuery}
             onSelectUser={handleSelectUser}
             onCloseSidebar={handleCloseSidebar}
         />
