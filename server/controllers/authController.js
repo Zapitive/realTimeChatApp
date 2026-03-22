@@ -89,7 +89,7 @@ const login = async (req,res) =>{
 
             return res.status(200).json({status:true, message:"Login successful",token: token});
         }else{
-            return res.status(401).json({status:false, message:"Password does not match"});
+            return res.status(403).json({status:false, message:"Password does not match"});
         }
     }catch(err){
         console.log(err)

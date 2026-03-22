@@ -6,7 +6,7 @@ const generateToken = async (userId) =>{
         const token = await jwt.sign(
             {id:userId},
             process.env.JWT_SECRET_KEY,
-            {expiresIn:'1m'}
+            {expiresIn:'20m'}
         )
         const refreshToken = crypto.randomBytes(64).toString('hex');
         const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
