@@ -1,11 +1,9 @@
 import api from './axios';
 import { useAuth } from '../context/authContext';
 import { refreshAccessToken } from './refresh';
-import { replace, useNavigate } from 'react-router-dom';
 
 export const useAxiosPrivate = () =>{
     const {accessToken, setAccessToken} = useAuth();
-    const navigate = useNavigate();
 
     api.interceptors.request.use(
         (config) =>{
@@ -28,7 +26,6 @@ export const useAxiosPrivate = () =>{
 
                 try{
                     const newToken = await refreshAccessToken(setAccessToken);
-                    console.log(newToken)
                     
                     prevRequest.headers.Authorization = `Bearer ${newToken}`;
                     return api(prevRequest);
