@@ -28,9 +28,9 @@ const searchUser = async(req,res) =>{
                 username:1
         }).limit(10);
 
-        const filteredUsers = users.map((user)=>({
+        const filteredUsers = users.map((user, idx)=>({
             ...user.toObject(),
-            status:'offline'
+            status: idx%2 ===0 ? 'online': 'offline'
         }));
 
         return res.status(200).json({message:"Users found",users:filteredUsers});
