@@ -3,9 +3,12 @@ import UserSidebar from '../components/UserSidebar';
 import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
 import { useAxiosPrivate } from '../api/axiosPrivate';
+import { useAuth } from '../context/authContext';
+import { socket } from '../SocketClient';
 
 export default function ChatsPage() {
 
+    const { accessToken } = useAuth();
     const api = useAxiosPrivate();
     // State Management
     const [searchQuery, setSearchQuery] = useState('');
@@ -132,6 +135,20 @@ export default function ChatsPage() {
         return () => clearTimeout(timer);
 
     },[searchQuery]);
+
+    // socket connection
+    useEffect(() =>{
+        if(!socket.connected){
+            socket.auth = {
+                token: accessToken,
+            };
+            socket.connect();
+        }
+
+        return () =>{
+            socket.disconnect();
+        };
+    },[]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex overflow-hidden relative">
