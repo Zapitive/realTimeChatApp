@@ -7,6 +7,7 @@ require('dotenv').config();
 const connectDB = require('./conn');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const { initSocket } = require('./socket');
 
 const app = express();
@@ -30,6 +31,7 @@ connectDB();
 
 app.use('/api/auth',authRoutes)
 app.use('/api/user',userRoutes);
+app.use('/api/chats', chatRoutes)
 
 
 try{

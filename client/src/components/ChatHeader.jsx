@@ -8,7 +8,7 @@ export default function ChatHeader({ user, onBackClick }) {
         >
           ←
         </button>
-        <span className="text-4xl">{user.avatar}</span>
+        <span className="text-4xl">{}</span>
         <div>
           <h2 className="text-white font-semibold text-lg">{user.name}</h2>
           <p

@@ -34,18 +34,22 @@ export default function ChatsPage() {
     });
 
     // User Data
-    const users = [
-        { id: 1, name: 'Sarah Johnson', status: 'online', avatar: '👩‍💼', lastMessage: 'That sounds amazing! Tell me more 😊' },
-        { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
-        { id: 3, name: 'Emma Davis', status: 'offline', avatar: '👩‍🔬', lastMessage: 'Did you see the latest update?' },
-        { id: 4, name: 'James Wilson', status: 'offline', avatar: '👨‍🎨', lastMessage: 'Great work on the design!' },
-        { id: 5, name: 'Olivia Brown', status: 'online', avatar: '👩‍🎓', lastMessage: 'See you tomorrow!' },
-        { id: 6, name: 'Michael Lee', status: 'offline', avatar: '👨‍🏫', lastMessage: 'Thanks for the feedback' },
-    ];
+    const [users, setUsers] = useState([
+        // { id: 1, name: 'Sarah Johnson', status: 'online', avatar: '👩‍💼', lastMessage: 'That sounds amazing! Tell me more 😊' },
+        // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
+        // { id: 3, name: 'Emma Davis', status: 'offline', avatar: '👩‍🔬', lastMessage: 'Did you see the latest update?' },
+        // { id: 4, name: 'James Wilson', status: 'offline', avatar: '👨‍🎨', lastMessage: 'Great work on the design!' },
+        // { id: 5, name: 'Olivia Brown', status: 'online', avatar: '👩‍🎓', lastMessage: 'See you tomorrow!' },
+        // { id: 6, name: 'Michael Lee', status: 'offline', avatar: '👨‍🏫', lastMessage: 'Thanks for the feedback' },
+    ]);
 
     // Computed Values
     const filteredUsers = users;
+
+    // displaying current chat in chat window
+    // console.log(users)
     const currentUser = selectedUser ? users.find(u => u.id === selectedUser) : null;
+    
     const currentMessages = selectedUser ? (messages[selectedUser] || []) : [];
 
     // Helper Functions
@@ -63,6 +67,15 @@ export default function ChatsPage() {
     // Event Handlers
     const handleSelectUser = (userId) => {
         setSelectedUser(userId);
+        if (searchResults.length > 0){
+            const newUser = searchResults.find(u => u.id === userId);
+            setUsers(prev => {
+                if (prev.some(u => u.id === userId)) return prev;
+                return [...prev, newUser];
+            });
+            createChatRoom(userId)
+            setSearchQuery('');
+        }
         setShowSidebar(false);
     };
 
@@ -97,6 +110,12 @@ export default function ChatsPage() {
         setShowSidebar(false);
     };
 
+    const handleInputChange = (e) => {
+        setInputMessage(e.target.value);
+    };
+
+    // api calls
+
     //Searching users according to email or username
     const handleSearchChange = async(query) => {
         // setSearchQuery(e.target.value);
@@ -112,19 +131,13 @@ export default function ChatsPage() {
             if (response) {
                 setSearchLoading(false);
                 setSearchResults(response.data.users);
+                console.log(response.data.users)
             }
         }catch(err){
             console.log(err)
         }
         
     };
-
-    const handleInputChange = (e) => {
-        setInputMessage(e.target.value);
-    };
-
-
-    
 
     // debouncing for rate limiting
     useEffect(()=>{
@@ -135,6 +148,24 @@ export default function ChatsPage() {
         return () => clearTimeout(timer);
 
     },[searchQuery]);
+
+    // creating chat room
+    const createChatRoom = async (userId) => {
+        console.log('creating chatRoom',userId);
+        try{
+            const response = await api.post(
+                '/api/chats',{
+                    receiverId: userId
+                },{
+                  withCredentials:true
+                }
+            );
+
+            console.log(response.data.chat);
+        }catch(err){
+            console.log(err)
+        }
+    }
 
     // socket connection
     useEffect(() =>{

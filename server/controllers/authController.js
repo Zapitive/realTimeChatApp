@@ -118,8 +118,8 @@ const refresh = async (req,res) =>{
             return res.status(403).json({status:false, message:"Invalid token"})
         }
 
-        await RefreshToken.deleteOne({
-            refreshToken: hashedToken
+        await RefreshToken.deleteMany({
+            userId: storedToken.userId
         });
 
         const {token: accessToken, refreshToken, hashedToken: newHash} = await generateToken(storedToken.userId);

@@ -53,11 +53,11 @@ export default function SearchResults({
             <div className="space-y-1">
             {results.map((user) => (
                 <UserCard
-                key={user._id}
+                key={user.id}
                 user={user}
-                isSelected={selectedUser === user._id}
+                isSelected={selectedUser === user.id}
                 getStatusColor={getStatusColor}
-                onSelectUser={() => onSelectUser(user._id)}
+                onSelectUser={() => onSelectUser(user.id)}
                 />
             ))}
             </div>

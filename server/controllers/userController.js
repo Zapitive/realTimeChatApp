@@ -28,8 +28,21 @@ const searchUser = async(req,res) =>{
                 username:1
         }).limit(10);
 
+        // console.log(
+        //     await userInfo.find({
+        //     _id:{$ne: objId},
+        //     $or:[
+        //         {username:{ $regex: regexValue, $options: "i" }},
+        //         {email:{ $regex: regexValue, $options: "i" }}
+        //     ]
+        //     },{
+        //         username:1
+        // }).explain('executionStats')
+        // )
+
         const filteredUsers = users.map((user, idx)=>({
-            ...user.toObject(),
+            id : user._id.toString(),
+            name : user.username,
             status: idx%2 ===0 ? 'online': 'offline'
         }));
 

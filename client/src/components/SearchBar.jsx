@@ -1,9 +1,4 @@
-import { useState, useEffect } from "react";
-
 export default function SearchBar({ setSearchQuery, searchQuery }) {
-
-    
-
     return (
         <div className="relative">
         <input

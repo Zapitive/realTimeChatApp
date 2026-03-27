@@ -1,8 +1,8 @@
-const {model,Schema, default: mongoose} = require('mongoose');
+const { model,Schema } = require('mongoose');
 
 const refreshTokenSchema = new Schema({
     userId:{
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: "userInfo"
     },
     refreshToken:{
