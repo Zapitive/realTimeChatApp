@@ -16,6 +16,10 @@ const userInfoSchema = new Schema({
     password:{
         type: String,
         required: true
+    },
+    status:{
+        type: String,
+        default: 'offline'
     }
 },{
     timestamps: true

@@ -65,16 +65,23 @@ export default function ChatsPage() {
     };
 
     // Event Handlers
-    const handleSelectUser = (userId) => {
-        setSelectedUser(userId);
-        if (searchResults.length > 0){
+    const handleSelectUser = async (userId) => {
+        const exists = users.find(user => user.users.id === userId);
+        if (searchResults.length > 0 && !exists){
             const newUser = searchResults.find(u => u.id === userId);
+            const chatID = await createChatRoom(userId);
+            const updateUser = {
+                id : chatID,
+                users: newUser
+            }
             setUsers(prev => {
-                if (prev.some(u => u.id === userId)) return prev;
-                return [...prev, newUser];
+                return [...prev, updateUser];
             });
-            createChatRoom(userId)
+            setSelectedUser(chatID);
             setSearchQuery('');
+            setSearchResults([])
+        }else{
+            setSelectedUser(exists.id);
         }
         setShowSidebar(false);
     };
@@ -131,7 +138,6 @@ export default function ChatsPage() {
             if (response) {
                 setSearchLoading(false);
                 setSearchResults(response.data.users);
-                console.log(response.data.users)
             }
         }catch(err){
             console.log(err)
@@ -162,10 +168,31 @@ export default function ChatsPage() {
             );
 
             console.log(response.data.chat);
+            return response.data.chat._id
         }catch(err){
             console.log(err)
         }
     }
+
+    //getting all chats
+
+    useEffect(()=>{
+        const getChats = async()=>{
+            try{
+                const response = await api.get(
+                    '/api/chats',{
+                    withCredentials:true
+                    }
+                );
+                console.log(response.data.chats)
+                setUsers(response.data.chats)
+            }catch(err){
+                console.log(err)
+            }
+        }
+        getChats();
+        
+    },[])
 
     // socket connection
     useEffect(() =>{
