@@ -26,7 +26,7 @@ export const useAxiosPrivate = () =>{
 
                 try{
                     const newToken = await refreshAccessToken(setAccessToken);
-                    
+                    console.log(newToken)
                     prevRequest.headers.Authorization = `Bearer ${newToken}`;
                     return api(prevRequest);
 
