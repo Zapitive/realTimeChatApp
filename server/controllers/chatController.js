@@ -16,7 +16,7 @@ const createChat = async(req,res) =>{
         });
 
         if (existingChat){
-            return res.status(200).json({message: 'Chat already exists', chat: existingChat })
+            return res.status(200).json({message: 'Chat already exists', chatId: existingChat._id })
         }
 
         const newChatRoom = await chatRoom.create({
@@ -24,7 +24,7 @@ const createChat = async(req,res) =>{
         });
 
         if (newChatRoom){
-            return res.status(201).json({message: 'new chatroom created', chat: newChatRoom });
+            return res.status(201).json({message: 'new chatroom created', chatId: newChatRoom._id });
         }
     }catch(err){
         console.log(err)

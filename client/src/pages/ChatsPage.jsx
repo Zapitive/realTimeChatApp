@@ -66,7 +66,7 @@ export default function ChatsPage() {
 
     // Event Handlers
     const handleSelectUser = async (userId) => {
-        const exists = users.find(user => user.users.id === userId);
+        const exists = users.find(user => user.id === userId);
         if (searchResults.length > 0 && !exists){
             const newUser = searchResults.find(u => u.id === userId);
             const chatID = await createChatRoom(userId);
@@ -167,8 +167,8 @@ export default function ChatsPage() {
                 }
             );
 
-            console.log(response.data.chat);
-            return response.data.chat._id
+            console.log(response.data.chatId);
+            return response.data.chatId
         }catch(err){
             console.log(err)
         }
