@@ -1,47 +1,54 @@
-import api from './axios';
-import { useAuth } from '../context/authContext';
-import { refreshAccessToken } from './refresh';
+import { useEffect } from "react";
+import api from "./axios";
+import { useAuth } from "../context/authContext";
+import { refreshAccessToken } from "./refresh";
 
-export const useAxiosPrivate = () =>{
-    const {accessToken, setAccessToken} = useAuth();
+export const useAxiosPrivate = () => {
+  const { accessToken, setAccessToken } = useAuth();
 
-    api.interceptors.request.use(
-        (config) =>{
-            if (accessToken){
-                config.headers.Authorization = `Bearer ${accessToken}`;
-            }
-
-            return config;
+  useEffect(() => {
+    const requestIntercept = api.interceptors.request.use(
+      (config) => {
+        if (!config.headers.Authorization && accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`;
         }
+        return config;
+      }
     );
 
-    api.interceptors.response.use(
-        (response) => response,
-        async(error) =>{
-            const prevRequest = error.config;
-            if (
-                (error.response?.status === 401 || error.response?.status === 403) 
-                && !prevRequest._retry){
-                prevRequest._retry = true;
+    const responseIntercept = api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const prevRequest = error.config;
 
-                try{
-                    const newToken = await refreshAccessToken(setAccessToken);
-                    console.log(newToken)
-                    prevRequest.headers.Authorization = `Bearer ${newToken}`;
-                    return api(prevRequest);
+        if (error.response?.status === 401 && !prevRequest._retry) {
+          prevRequest._retry = true;
 
-                }catch(refreshError){
+          try {
+            const newToken = await refreshAccessToken(setAccessToken);
 
-                    setAccessToken(null);
-                    return Promise.reject(refreshError);
-
-                }
-                
+            if (newToken) {
+            prevRequest.headers = {
+                ...prevRequest.headers,
+                Authorization: `Bearer ${newToken}`,
+            };
+              return api(prevRequest);
             }
-
-            return Promise.reject(error)
+          } catch (refreshError) {
+            setAccessToken(null);
+            return Promise.reject(refreshError);
+          }
         }
+
+        return Promise.reject(error);
+      }
     );
 
-    return api;
+    return () => {
+      api.interceptors.request.eject(requestIntercept);
+      api.interceptors.response.eject(responseIntercept);
+    };
+  }, [accessToken, setAccessToken]);
+
+  return api;
 };

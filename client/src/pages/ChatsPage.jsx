@@ -79,9 +79,11 @@ export default function ChatsPage() {
             });
             setSelectedUser(chatID);
             setSearchQuery('');
-            setSearchResults([])
+            setSearchResults([]);
         }else{
             setSelectedUser(exists.id);
+            setSearchQuery('');
+            setSearchResults([]);
         }
         setShowSidebar(false);
     };
