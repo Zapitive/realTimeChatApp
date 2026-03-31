@@ -91,18 +91,27 @@ export default function ChatsPage() {
     const handleSendMessage = (e) => {
         e.preventDefault();
         if (inputMessage.trim() && selectedUser) {
-        const newMessage = {
-            id: (currentMessages.length || 0) + 1,
-            sender: 'You',
-            text: inputMessage,
-            timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            isOwn: true,
-        };
-        setMessages(prev => ({
-            ...prev,
-            [selectedUser]: [...(prev[selectedUser] || []), newMessage]
-        }));
-        setInputMessage('');
+            
+            const newMessage = {
+                id: (currentMessages.length || 0) + 1,
+                text: inputMessage,
+                timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                isOwn: true,
+            };
+            setMessages(prev => ({
+                ...prev,
+                [selectedUser]: [...(prev[selectedUser] || []), newMessage]
+            }));
+            socket.emit('sendMessage',{chatId: selectedUser, messageInp: inputMessage},(response)=>{
+                console.log(response);
+                if(!response){
+                    // can add features for not sent message
+                    console.log('no response')
+                }
+            });
+            
+            setInputMessage('');
+            console.log(messages);
         }
     };
 
@@ -194,7 +203,39 @@ export default function ChatsPage() {
         }
         getChats();
         
-    },[])
+    },[]);
+
+    // socket receive method methods 
+    useEffect(()=>{
+
+        const handleReceive = (msg) =>{
+
+            const date = new Date(msg.createdAt);
+
+            const formatted = date.toLocaleTimeString([],{
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const newMessage = {
+                id: msg._id,
+                text: msg.content,
+                timestamp: formatted,
+                isOwn: false,
+            }
+            setMessages(prev => ({
+                ...prev,
+                [msg.chatId]: [...(prev[msg.chatId] || []), newMessage]
+            }));
+            console.log(newMessage);
+        }
+
+        socket.on('receiveMessage',handleReceive);
+
+        return () =>{
+            socket.off('receiveMessage',handleReceive);
+        };
+    },[]);
 
     // socket connection
     useEffect(() =>{

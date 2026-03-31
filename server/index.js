@@ -8,7 +8,7 @@ const connectDB = require('./conn');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const chatRoutes = require('./routes/chatRoutes');
-const { initSocket } = require('./socket');
+const { initSocket } = require('./socket/socket');
 
 const app = express();
 const server = http.createServer(app);
