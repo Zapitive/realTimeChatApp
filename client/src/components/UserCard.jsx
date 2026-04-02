@@ -19,7 +19,7 @@ export default function UserCard({ user, isSelected, getStatusColor, onSelectUse
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-white font-semibold text-sm truncate">{user?.users?.name ? user.users.name : user.name}</h3>
-          <p className="text-gray-400 text-xs truncate">{user.lastMessage}</p>
+          <p className="text-gray-400 text-xs truncate">{user?.users?.lastMessage}</p>
         </div>
       </div>
     </button>

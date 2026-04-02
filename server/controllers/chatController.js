@@ -70,12 +70,13 @@ const allChats = async (req, res) =>{
                     "id" : "$_id",
                     "users.id": "$users._id",
                     "users.name": "$users.username",
-                    "users.status":1
+                    "users.status":1,
+                    "users.lastMessage":"$lastMessage.text"
                 }
             }
         ])
 
-
+        console.log(results)
         res.status(200).json({message: "All chats received", chats:results})
 
 

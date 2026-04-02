@@ -20,7 +20,10 @@ const chatRoomSchema = new Schema({
     },
 
     lastMessage :{
-        text : 'String',
+        text : {
+            type: 'String',
+            default: ''
+        },
         senderId : {
             type : Schema.Types.ObjectId,
             ref : 'userInfo'

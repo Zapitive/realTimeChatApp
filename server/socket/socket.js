@@ -46,10 +46,29 @@ const initSocket = (server) =>{
                 senderId: socket.user.id,
                 content: messageInp
             });
-            callback(newMessage);
+            
             if(newMessage){
+
+                await chatRoom.updateOne(
+                    {_id:chatId},
+                    {
+                        $set:{
+                            lastMessage:{
+                                text: newMessage.content,
+                                senderId: newMessage.senderId,
+                                createdAt: newMessage.createdAt
+                            }
+                        }
+                    }
+                );
+
                 io.to(receiverId.toString()).emit('receiveMessage',newMessage);
             }
+
+            callback({
+                status: "ok",
+                newMessage,
+            });
         });
 
         socket.on('disconnect', ()=>{

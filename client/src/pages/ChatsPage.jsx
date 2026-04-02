@@ -35,12 +35,9 @@ export default function ChatsPage() {
 
     // User Data
     const [users, setUsers] = useState([
-        // { id: 1, name: 'Sarah Johnson', status: 'online', avatar: '👩‍💼', lastMessage: 'That sounds amazing! Tell me more 😊' },
+        // example User from backend
+        // { id: 1, users:{name: 'Sarah Johnson', status: 'online', lastMessage: 'That sounds amazing! Tell me more 😊'} },
         // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
-        // { id: 3, name: 'Emma Davis', status: 'offline', avatar: '👩‍🔬', lastMessage: 'Did you see the latest update?' },
-        // { id: 4, name: 'James Wilson', status: 'offline', avatar: '👨‍🎨', lastMessage: 'Great work on the design!' },
-        // { id: 5, name: 'Olivia Brown', status: 'online', avatar: '👩‍🎓', lastMessage: 'See you tomorrow!' },
-        // { id: 6, name: 'Michael Lee', status: 'offline', avatar: '👨‍🏫', lastMessage: 'Thanks for the feedback' },
     ]);
 
     // Computed Values
@@ -106,15 +103,28 @@ export default function ChatsPage() {
                 [selectedUser]: [...(prev[selectedUser] || []), newMessage]
             }));
             socket.emit('sendMessage',{chatId: selectedUser, messageInp: inputMessage},(response)=>{
-                console.log(response);
-                if(!response){
+                
+                if(response.status === "ok"){
+                    setUsers((prev)=>
+                        prev.map((chat) =>
+                        chat.id === selectedUser
+                        ? {
+                            ...chat,
+                            users: {
+                                ...chat.users,
+                                lastMessage: inputMessage
+                            }
+                            }
+                        : chat
+                    )
+                    );
+                }else{
                     // can add features for not sent message
                     console.log('no response')
                 }
             });
             
             setInputMessage('');
-            console.log(messages);
         }
     };
 
@@ -279,7 +289,19 @@ export default function ChatsPage() {
                 ...prev,
                 [msg.chatId]: [...(prev[msg.chatId] || []), newMessage]
             }));
-            console.log(newMessage);
+            setUsers((prev) =>
+                prev.map((user) =>
+                user.id === msg.chatId
+                    ? {
+                        ...user,
+                        users: {
+                                ...user.users,
+                                lastMessage: msg.content
+                            }
+                    }
+                    : user
+                )
+            );
         }
 
         socket.on('receiveMessage',handleReceive);
