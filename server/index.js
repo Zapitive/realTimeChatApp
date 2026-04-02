@@ -8,6 +8,7 @@ const connectDB = require('./conn');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const messageRoutes = require('./routes/messageRoutes');
 const { initSocket } = require('./socket/socket');
 
 const app = express();
@@ -31,7 +32,8 @@ connectDB();
 
 app.use('/api/auth',authRoutes)
 app.use('/api/user',userRoutes);
-app.use('/api/chats', chatRoutes)
+app.use('/api/chats', chatRoutes);
+app.use('/api/messages',messageRoutes);
 
 
 try{

@@ -18,19 +18,19 @@ export default function ChatsPage() {
     const [showSidebar, setShowSidebar] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
     const [messages, setMessages] = useState({
-        1: [
-        { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
-        { id: 2, sender: 'You', text: 'I\'m doing great! Just working on some projects.', timestamp: '10:31 AM', isOwn: true },
-        { id: 3, sender: 'Sarah Johnson', text: 'That sounds amazing! Tell me more 😊', timestamp: '10:32 AM', isOwn: false },
-        { id: 4, sender: 'You', text: 'Building a chat app with React and Tailwind CSS', timestamp: '10:33 AM', isOwn: true },
-        ],
-        2: [
-        { id: 1, sender: 'Alex Chen', text: 'Meeting at 2 PM?', timestamp: '2:15 PM', isOwn: false },
-        { id: 2, sender: 'You', text: 'Sure! I\'ll be there', timestamp: '2:16 PM', isOwn: true },
-        ],
-        3: [
-        { id: 1, sender: 'Emma Davis', text: 'Did you see the latest update?', timestamp: '3:45 PM', isOwn: false },
-        ],
+        // 1: [
+        // { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
+        // { id: 2, sender: 'You', text: 'I\'m doing great! Just working on some projects.', timestamp: '10:31 AM', isOwn: true },
+        // { id: 3, sender: 'Sarah Johnson', text: 'That sounds amazing! Tell me more 😊', timestamp: '10:32 AM', isOwn: false },
+        // { id: 4, sender: 'You', text: 'Building a chat app with React and Tailwind CSS', timestamp: '10:33 AM', isOwn: true },
+        // ],
+        // 2: [
+        // { id: 1, sender: 'Alex Chen', text: 'Meeting at 2 PM?', timestamp: '2:15 PM', isOwn: false },
+        // { id: 2, sender: 'You', text: 'Sure! I\'ll be there', timestamp: '2:16 PM', isOwn: true },
+        // ],
+        // 3: [
+        // { id: 1, sender: 'Emma Davis', text: 'Did you see the latest update?', timestamp: '3:45 PM', isOwn: false },
+        // ],
     });
 
     // User Data
@@ -47,7 +47,7 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    // console.log(users)
+    // console.log(messages)
     const currentUser = selectedUser ? users.find(u => u.id === selectedUser) : null;
     
     const currentMessages = selectedUser ? (messages[selectedUser] || []) : [];
@@ -81,6 +81,9 @@ export default function ChatsPage() {
             setSearchQuery('');
             setSearchResults([]);
         }else{
+            
+            
+
             setSelectedUser(exists.id);
             setSearchQuery('');
             setSearchResults([]);
@@ -184,6 +187,55 @@ export default function ChatsPage() {
             console.log(err)
         }
     }
+
+    // get chat messages 
+    
+    const getMessages = async (chatId) =>{
+        try{
+            const response = await api.get(
+                '/api/messages',{
+                    params :{
+                        chatId: chatId
+                    },
+                    withCredentials: true
+                }
+            );
+            return response.data.chatMessages
+        }catch(err){
+            console.log(err)
+        }
+    }
+
+    useEffect(()=>{
+        const fetchMessages = async () =>{    
+            if (!selectedUser) return;
+
+            if (messages[selectedUser]) return;
+
+            
+            const chatMessages = await getMessages(selectedUser);
+                
+            const transformedMessages = chatMessages
+                .slice()
+                .reverse()
+                .map((msg) => {
+                    const date = new Date(msg.timestamp);
+                    const formattedTime = date.toLocaleTimeString([],{
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    return {
+                        ...msg,
+                        timestamp: formattedTime
+                    };    
+                });
+            setMessages((prev) => ({
+                ...prev,
+                [selectedUser]: transformedMessages
+            }));
+        }
+        fetchMessages();
+    },[selectedUser])
 
     //getting all chats
 
