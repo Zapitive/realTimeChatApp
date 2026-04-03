@@ -6,6 +6,8 @@ import { useAxiosPrivate } from '../api/axiosPrivate';
 import { useAuth } from '../context/authContext';
 import { socket } from '../SocketClient';
 
+
+
 export default function ChatsPage() {
 
     const { accessToken } = useAuth();
@@ -40,6 +42,20 @@ export default function ChatsPage() {
         // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
     ]);
 
+    const [loading, setLoading] = useState({
+        chats: false,
+        messages: false,
+        search: false,
+        sendingMessage: false,
+    });
+
+    const setLoadingState = (key, value) => {
+        setLoading(prev => ({ ...prev, [key]: value }));
+    };
+
+    const [appError, setAppError] = useState(null);
+
+
     // Computed Values
     const filteredUsers = users;
 
@@ -61,6 +77,12 @@ export default function ChatsPage() {
         }
     };
 
+    const showError = (message, duration = 5000) => {
+        setAppError(message);
+        const timer = setTimeout(() => setAppError(null), duration);
+        return () => clearTimeout(timer);
+    };
+
     // Event Handlers
     const handleSelectUser = async (userId) => {
         const exists = users.find(user => user.id === userId);
@@ -78,9 +100,6 @@ export default function ChatsPage() {
             setSearchQuery('');
             setSearchResults([]);
         }else{
-            
-            
-
             setSelectedUser(exists.id);
             setSearchQuery('');
             setSearchResults([]);
@@ -217,58 +236,91 @@ export default function ChatsPage() {
     }
 
     useEffect(()=>{
+
+        const controller = new AbortController();
+
         const fetchMessages = async () =>{    
             if (!selectedUser) return;
 
             if (messages[selectedUser]) return;
 
             
-            const chatMessages = await getMessages(selectedUser);
-                
-            const transformedMessages = chatMessages
-                .slice()
-                .reverse()
-                .map((msg) => {
-                    const date = new Date(msg.timestamp);
-                    const formattedTime = date.toLocaleTimeString([],{
-                        hour: '2-digit',
-                        minute: '2-digit'
+            try{   
+                setLoadingState('messages',true)
+                const chatMessages = await getMessages(selectedUser);
+
+                if (controller.signal.aborted) return;
+                    
+                const transformedMessages = chatMessages
+                    .slice()
+                    .reverse()
+                    .map((msg) => {
+                        const date = new Date(msg.timestamp);
+                        const formattedTime = date.toLocaleTimeString([],{
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        return {
+                            ...msg,
+                            timestamp: formattedTime
+                        };    
                     });
-                    return {
-                        ...msg,
-                        timestamp: formattedTime
-                    };    
-                });
-            setMessages((prev) => ({
-                ...prev,
-                [selectedUser]: transformedMessages
-            }));
-        }
+                setMessages((prev) => ({
+                    ...prev,
+                    [selectedUser]: transformedMessages
+                }));
+            }catch(err){
+                if (!controller.signal.aborted){
+                    showError('Failed to load messages');
+                    console.log(err);
+                }
+            }finally{
+                setLoadingState('messages',false)
+            }
+        };
+
         fetchMessages();
-    },[selectedUser])
+
+        return () => controller.abort();
+    },[selectedUser, messages])
 
     //getting all chats
 
     useEffect(()=>{
         const getChats = async()=>{
             try{
+                setLoadingState('chats',true)
                 const response = await api.get(
                     '/api/chats',{
                     withCredentials:true
                     }
                 );
-                setUsers(response.data.chats)
+                setUsers(response.data.chats || []);
             }catch(err){
-                console.log(err)
+                showError('Failed to load chats!');
+                console.log(err);
+                setUsers([]);
+            }finally{
+                setLoadingState('chats', false)
             }
         }
+
         getChats();
         
-    },[]);
+    },[api]);
 
-    // socket receive method methods 
-    useEffect(()=>{
+    
 
+    // socket connection
+    useEffect(() =>{
+        if(!socket.connected){
+            socket.auth = {
+                token: accessToken,
+            };
+            socket.connect();
+        }
+
+        // socket receive method methods 
         const handleReceive = (msg) =>{
 
             const date = new Date(msg.createdAt);
@@ -303,16 +355,7 @@ export default function ChatsPage() {
             );
         }
 
-        socket.on('receiveMessage',handleReceive);
-
-        return () =>{
-            socket.off('receiveMessage',handleReceive);
-        };
-    },[]);
-
-    // user status update
-    useEffect(() =>{
-
+        // user status update
         const handleOnline = ({userId}) =>{
             setUsers( prev =>
                 prev.map(user =>
@@ -345,27 +388,15 @@ export default function ChatsPage() {
 
         socket.on('userOnline', handleOnline);
         socket.on('userOffline', handleOffline);
-
-        return () => {
-            socket.off('userOnline', handleOnline);
-            socket.off('userOffline', handleOffline);
-        }
-
-    },[]);
-
-    // socket connection
-    useEffect(() =>{
-        if(!socket.connected){
-            socket.auth = {
-                token: accessToken,
-            };
-            socket.connect();
-        }
+        socket.on('receiveMessage',handleReceive);
 
         return () =>{
+            socket.off('userOnline', handleOnline);
+            socket.off('userOffline', handleOffline);
+            socket.off('receiveMessage',handleReceive);
             socket.disconnect();
         };
-    },[]);
+    },[accessToken]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex overflow-hidden relative">
