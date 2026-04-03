@@ -85,6 +85,7 @@ realTimeChatApp/
 │   ├── middlewares/     # Request handling (auth, validation, etc.)
 │   ├── routes/          # API route definitions
 │   ├── models/          # Database schemas/models
+│   ├── models/          # DB operations
 │   ├── socket/          # Real-time logic
 │   ├── utils/           # Helper and utility functions
 │   ├── .env             # Environment variables

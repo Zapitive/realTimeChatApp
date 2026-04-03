@@ -44,7 +44,7 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    // console.log(messages)
+    // console.log(users)
     const currentUser = selectedUser ? users.find(u => u.id === selectedUser) : null;
     
     const currentMessages = selectedUser ? (messages[selectedUser] || []) : [];
@@ -257,7 +257,6 @@ export default function ChatsPage() {
                     withCredentials:true
                     }
                 );
-                console.log(response.data.chats)
                 setUsers(response.data.chats)
             }catch(err){
                 console.log(err)
@@ -309,6 +308,49 @@ export default function ChatsPage() {
         return () =>{
             socket.off('receiveMessage',handleReceive);
         };
+    },[]);
+
+    // user status update
+    useEffect(() =>{
+
+        const handleOnline = ({userId}) =>{
+            setUsers( prev =>
+                prev.map(user =>
+                    user.users.id === userId
+                    ? {
+                        ...user,
+                        users:{
+                            ...user.users,
+                            status: 'online'
+                        }
+                    }: user
+                )
+            );
+        }
+
+        const handleOffline = ({userId}) =>{
+            setUsers( prev =>
+                prev.map(user =>
+                    user.users.id === userId
+                    ? {
+                        ...user,
+                        users:{
+                            ...user.users,
+                            status: 'offline'
+                        }
+                    }: user
+                )
+            );
+        }
+
+        socket.on('userOnline', handleOnline);
+        socket.on('userOffline', handleOffline);
+
+        return () => {
+            socket.off('userOnline', handleOnline);
+            socket.off('userOffline', handleOffline);
+        }
+
     },[]);
 
     // socket connection
