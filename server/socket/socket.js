@@ -35,6 +35,11 @@ const initSocket = (server) =>{
 
         onlineUsers.get(userId).add(socket.id);
 
+        socket.on('joinRoom', async(data) =>{
+            if (socket.rooms.has(data.activeChatId)) return;
+                socket.join(data.activeChatId);
+        })
+
         socket.on('sendMessage', async (data, callback) => {
             const {chatId, messageInp} = data;
 
@@ -72,7 +77,8 @@ const initSocket = (server) =>{
                     }
                 );
 
-                io.to(receiverId.toString()).emit('receiveMessage',newMessage);
+                io.to(String(chatId)).emit('receiveMessage',newMessage);
+                io.to(String(receiverId)).emit('receiveNotification',newMessage)
             }
 
             callback({

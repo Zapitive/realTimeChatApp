@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import UserSidebar from '../components/UserSidebar';
 import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
@@ -41,6 +41,9 @@ export default function ChatsPage() {
         // { id: 1, users:{name: 'Sarah Johnson', status: 'online', lastMessage: 'That sounds amazing! Tell me more 😊'} },
         // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
     ]);
+
+    const usersRef = useRef(users);
+    const activeChatRef = useRef(selectedUser);
 
     const [loading, setLoading] = useState({
         chats: false,
@@ -86,24 +89,24 @@ export default function ChatsPage() {
     // Event Handlers
     const handleSelectUser = async (userId) => {
         const exists = users.find(user => user.id === userId);
-        if (searchResults.length > 0 && !exists){
+        if (!exists && searchResults.length > 0){
             const newUser = searchResults.find(u => u.id === userId);
-            const chatID = await createChatRoom(userId);
+            const chatId = await createChatRoom(userId);
             const updateUser = {
-                id : chatID,
+                id : chatId,
                 users: newUser
             }
             setUsers(prev => {
                 return [...prev, updateUser];
             });
-            setSelectedUser(chatID);
-            setSearchQuery('');
-            setSearchResults([]);
+            socket.emit('joinRoom', {activeChatId: chatId});
+            setSelectedUser(chatId);
         }else{
+            socket.emit('joinRoom', {activeChatId: exists.id});
             setSelectedUser(exists.id);
-            setSearchQuery('');
-            setSearchResults([]);
-        }
+        } 
+        setSearchQuery('');
+        setSearchResults([]);
         setShowSidebar(false);
     };
 
@@ -280,9 +283,11 @@ export default function ChatsPage() {
         };
 
         fetchMessages();
+        usersRef.current = users;
+        activeChatRef.current = selectedUser;
 
         return () => controller.abort();
-    },[selectedUser, messages])
+    },[selectedUser, messages, users])
 
     //getting all chats
 
@@ -330,16 +335,33 @@ export default function ChatsPage() {
                 minute: '2-digit'
             });
 
+            const receiver = usersRef.current.find(u => u.id === msg.chatId);
             const newMessage = {
                 id: msg._id,
                 text: msg.content,
                 timestamp: formatted,
-                isOwn: false,
+                isOwn: receiver.users.id !== String(msg.senderId),
             }
-            setMessages(prev => ({
-                ...prev,
-                [msg.chatId]: [...(prev[msg.chatId] || []), newMessage]
-            }));
+
+            if (!newMessage.isOwn){
+                setMessages(prev => ({
+                    ...prev,
+                    [msg.chatId]: [...(prev[msg.chatId] || []), newMessage]
+                }));
+            }
+            
+        }
+
+        const handleNotification = (msg) =>{
+            const date = new Date(msg.createdAt);
+
+            const formatted = date.toLocaleTimeString([],{
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            
+
             setUsers((prev) =>
                 prev.map((user) =>
                 user.id === msg.chatId
@@ -353,6 +375,12 @@ export default function ChatsPage() {
                     : user
                 )
             );
+
+            if (String(activeChatRef.current) !== String(msg.chatId)){
+                const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
+                alert(`${msg.content} from ${senderName} at ${formatted}`);
+            }
+
         }
 
         // user status update
@@ -389,11 +417,13 @@ export default function ChatsPage() {
         socket.on('userOnline', handleOnline);
         socket.on('userOffline', handleOffline);
         socket.on('receiveMessage',handleReceive);
+        socket.on('receiveNotification', handleNotification)
 
         return () =>{
             socket.off('userOnline', handleOnline);
             socket.off('userOffline', handleOffline);
             socket.off('receiveMessage',handleReceive);
+            socket.off('receiveNotification',handleNotification);
             socket.disconnect();
         };
     },[accessToken]);
