@@ -49,7 +49,7 @@ const signUp = async(req,res) =>{
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
                 secure: true,
-                sameSite: 'strict'
+                sameSite: 'None'
             });
 
             return res.status(201).json({status:true, message:"User created successfully",token: token});
@@ -84,7 +84,7 @@ const login = async (req,res) =>{
             res.cookie("refreshToken", refreshToken, {
                 httpOnly : true,
                 secure: true,
-                sameSite: "strict"
+                sameSite: "None"
             });
 
             return res.status(200).json({status:true, message:"Login successful",token: token});
@@ -132,7 +132,7 @@ const refresh = async (req,res) =>{
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: true,
-            sameSite: 'strict'
+            sameSite: 'None'
         });
 
         return res.status(200).json({status:true, message: "new token generated", token:accessToken})
