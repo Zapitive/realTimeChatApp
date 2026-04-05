@@ -4,7 +4,7 @@ import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
 import { useAxiosPrivate } from '../api/axiosPrivate';
 import { useAuth } from '../context/authContext';
-import { socket } from '../SocketClient';
+import { useSocketWithAuth } from '../socket/useSocketWithAuth';
 
 
 
@@ -12,6 +12,7 @@ export default function ChatsPage() {
 
     const { accessToken } = useAuth();
     const api = useAxiosPrivate();
+    const socket = useSocketWithAuth();
     // State Management
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
