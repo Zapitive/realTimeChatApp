@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import UserSidebar from '../components/UserSidebar';
 import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
 import { useAxiosPrivate } from '../api/axiosPrivate';
 import { useAuth } from '../context/authContext';
 import { socket } from '../SocketClient';
+
+
 
 export default function ChatsPage() {
 
@@ -18,30 +20,44 @@ export default function ChatsPage() {
     const [showSidebar, setShowSidebar] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
     const [messages, setMessages] = useState({
-        1: [
-        { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
-        { id: 2, sender: 'You', text: 'I\'m doing great! Just working on some projects.', timestamp: '10:31 AM', isOwn: true },
-        { id: 3, sender: 'Sarah Johnson', text: 'That sounds amazing! Tell me more 😊', timestamp: '10:32 AM', isOwn: false },
-        { id: 4, sender: 'You', text: 'Building a chat app with React and Tailwind CSS', timestamp: '10:33 AM', isOwn: true },
-        ],
-        2: [
-        { id: 1, sender: 'Alex Chen', text: 'Meeting at 2 PM?', timestamp: '2:15 PM', isOwn: false },
-        { id: 2, sender: 'You', text: 'Sure! I\'ll be there', timestamp: '2:16 PM', isOwn: true },
-        ],
-        3: [
-        { id: 1, sender: 'Emma Davis', text: 'Did you see the latest update?', timestamp: '3:45 PM', isOwn: false },
-        ],
+        // 1: [
+        // { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
+        // { id: 2, sender: 'You', text: 'I\'m doing great! Just working on some projects.', timestamp: '10:31 AM', isOwn: true },
+        // { id: 3, sender: 'Sarah Johnson', text: 'That sounds amazing! Tell me more 😊', timestamp: '10:32 AM', isOwn: false },
+        // { id: 4, sender: 'You', text: 'Building a chat app with React and Tailwind CSS', timestamp: '10:33 AM', isOwn: true },
+        // ],
+        // 2: [
+        // { id: 1, sender: 'Alex Chen', text: 'Meeting at 2 PM?', timestamp: '2:15 PM', isOwn: false },
+        // { id: 2, sender: 'You', text: 'Sure! I\'ll be there', timestamp: '2:16 PM', isOwn: true },
+        // ],
+        // 3: [
+        // { id: 1, sender: 'Emma Davis', text: 'Did you see the latest update?', timestamp: '3:45 PM', isOwn: false },
+        // ],
     });
 
     // User Data
     const [users, setUsers] = useState([
-        // { id: 1, name: 'Sarah Johnson', status: 'online', avatar: '👩‍💼', lastMessage: 'That sounds amazing! Tell me more 😊' },
+        // example User from backend
+        // { id: 1, users:{name: 'Sarah Johnson', status: 'online', lastMessage: 'That sounds amazing! Tell me more 😊'} },
         // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
-        // { id: 3, name: 'Emma Davis', status: 'offline', avatar: '👩‍🔬', lastMessage: 'Did you see the latest update?' },
-        // { id: 4, name: 'James Wilson', status: 'offline', avatar: '👨‍🎨', lastMessage: 'Great work on the design!' },
-        // { id: 5, name: 'Olivia Brown', status: 'online', avatar: '👩‍🎓', lastMessage: 'See you tomorrow!' },
-        // { id: 6, name: 'Michael Lee', status: 'offline', avatar: '👨‍🏫', lastMessage: 'Thanks for the feedback' },
     ]);
+
+    const usersRef = useRef(users);
+    const activeChatRef = useRef(selectedUser);
+
+    const [loading, setLoading] = useState({
+        chats: false,
+        messages: false,
+        search: false,
+        sendingMessage: false,
+    });
+
+    const setLoadingState = (key, value) => {
+        setLoading(prev => ({ ...prev, [key]: value }));
+    };
+
+    const [appError, setAppError] = useState(null);
+
 
     // Computed Values
     const filteredUsers = users;
@@ -64,36 +80,73 @@ export default function ChatsPage() {
         }
     };
 
+    const showError = (message, duration = 5000) => {
+        setAppError(message);
+        const timer = setTimeout(() => setAppError(null), duration);
+        return () => clearTimeout(timer);
+    };
+
     // Event Handlers
-    const handleSelectUser = (userId) => {
-        setSelectedUser(userId);
-        if (searchResults.length > 0){
+    const handleSelectUser = async (userId) => {
+        const exists = users.find(user => user.id === userId);
+        if (!exists && searchResults.length > 0){
             const newUser = searchResults.find(u => u.id === userId);
+            const chatId = await createChatRoom(userId);
+            const updateUser = {
+                id : chatId,
+                users: newUser
+            }
             setUsers(prev => {
-                if (prev.some(u => u.id === userId)) return prev;
-                return [...prev, newUser];
+                return [...prev, updateUser];
             });
-            createChatRoom(userId)
-            setSearchQuery('');
-        }
+            socket.emit('joinRoom', {activeChatId: chatId});
+            setSelectedUser(chatId);
+        }else{
+            socket.emit('joinRoom', {activeChatId: exists.id});
+            setSelectedUser(exists.id);
+        } 
+        setSearchQuery('');
+        setSearchResults([]);
         setShowSidebar(false);
     };
 
     const handleSendMessage = (e) => {
         e.preventDefault();
         if (inputMessage.trim() && selectedUser) {
-        const newMessage = {
-            id: (currentMessages.length || 0) + 1,
-            sender: 'You',
-            text: inputMessage,
-            timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            isOwn: true,
-        };
-        setMessages(prev => ({
-            ...prev,
-            [selectedUser]: [...(prev[selectedUser] || []), newMessage]
-        }));
-        setInputMessage('');
+            
+            const newMessage = {
+                id: (currentMessages.length || 0) + 1,
+                text: inputMessage,
+                timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                isOwn: true,
+            };
+            setMessages(prev => ({
+                ...prev,
+                [selectedUser]: [...(prev[selectedUser] || []), newMessage]
+            }));
+            socket.emit('sendMessage',{chatId: selectedUser, messageInp: inputMessage},(response)=>{
+                
+                if(response.status === "ok"){
+                    setUsers((prev)=>
+                        prev.map((chat) =>
+                        chat.id === selectedUser
+                        ? {
+                            ...chat,
+                            users: {
+                                ...chat.users,
+                                lastMessage: inputMessage
+                            }
+                            }
+                        : chat
+                    )
+                    );
+                }else{
+                    // can add features for not sent message
+                    console.log('no response')
+                }
+            });
+            
+            setInputMessage('');
         }
     };
 
@@ -131,7 +184,6 @@ export default function ChatsPage() {
             if (response) {
                 setSearchLoading(false);
                 setSearchResults(response.data.users);
-                console.log(response.data.users)
             }
         }catch(err){
             console.log(err)
@@ -161,11 +213,108 @@ export default function ChatsPage() {
                 }
             );
 
-            console.log(response.data.chat);
+            console.log(response.data.chatId);
+            return response.data.chatId
         }catch(err){
             console.log(err)
         }
     }
+
+    // get chat messages 
+    
+    const getMessages = async (chatId) =>{
+        try{
+            const response = await api.get(
+                '/api/messages',{
+                    params :{
+                        chatId: chatId
+                    },
+                    withCredentials: true
+                }
+            );
+            return response.data.chatMessages
+        }catch(err){
+            console.log(err)
+        }
+    }
+
+    useEffect(()=>{
+
+        const controller = new AbortController();
+
+        const fetchMessages = async () =>{    
+            if (!selectedUser) return;
+
+            if (messages[selectedUser]) return;
+
+            
+            try{   
+                setLoadingState('messages',true)
+                const chatMessages = await getMessages(selectedUser);
+
+                if (controller.signal.aborted) return;
+                    
+                const transformedMessages = chatMessages
+                    .slice()
+                    .reverse()
+                    .map((msg) => {
+                        const date = new Date(msg.timestamp);
+                        const formattedTime = date.toLocaleTimeString([],{
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        return {
+                            ...msg,
+                            timestamp: formattedTime
+                        };    
+                    });
+                setMessages((prev) => ({
+                    ...prev,
+                    [selectedUser]: transformedMessages
+                }));
+            }catch(err){
+                if (!controller.signal.aborted){
+                    showError('Failed to load messages');
+                    console.log(err);
+                }
+            }finally{
+                setLoadingState('messages',false)
+            }
+        };
+
+        fetchMessages();
+        usersRef.current = users;
+        activeChatRef.current = selectedUser;
+
+        return () => controller.abort();
+    },[selectedUser, messages, users])
+
+    //getting all chats
+
+    useEffect(()=>{
+        const getChats = async()=>{
+            try{
+                setLoadingState('chats',true)
+                const response = await api.get(
+                    '/api/chats',{
+                    withCredentials:true
+                    }
+                );
+                setUsers(response.data.chats || []);
+            }catch(err){
+                showError('Failed to load chats!');
+                console.log(err);
+                setUsers([]);
+            }finally{
+                setLoadingState('chats', false)
+            }
+        }
+
+        getChats();
+        
+    },[api]);
+
+    
 
     // socket connection
     useEffect(() =>{
@@ -176,10 +325,108 @@ export default function ChatsPage() {
             socket.connect();
         }
 
+        // socket receive method methods 
+        const handleReceive = (msg) =>{
+
+            const date = new Date(msg.createdAt);
+
+            const formatted = date.toLocaleTimeString([],{
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const receiver = usersRef.current.find(u => u.id === msg.chatId);
+            const newMessage = {
+                id: msg._id,
+                text: msg.content,
+                timestamp: formatted,
+                isOwn: receiver.users.id !== String(msg.senderId),
+            }
+
+            if (!newMessage.isOwn){
+                setMessages(prev => ({
+                    ...prev,
+                    [msg.chatId]: [...(prev[msg.chatId] || []), newMessage]
+                }));
+            }
+            
+        }
+
+        const handleNotification = (msg) =>{
+            const date = new Date(msg.createdAt);
+
+            const formatted = date.toLocaleTimeString([],{
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            
+
+            setUsers((prev) =>
+                prev.map((user) =>
+                user.id === msg.chatId
+                    ? {
+                        ...user,
+                        users: {
+                                ...user.users,
+                                lastMessage: msg.content
+                            }
+                    }
+                    : user
+                )
+            );
+
+            if (String(activeChatRef.current) !== String(msg.chatId)){
+                const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
+                alert(`${msg.content} from ${senderName} at ${formatted}`);
+            }
+
+        }
+
+        // user status update
+        const handleOnline = ({userId}) =>{
+            setUsers( prev =>
+                prev.map(user =>
+                    user.users.id === userId
+                    ? {
+                        ...user,
+                        users:{
+                            ...user.users,
+                            status: 'online'
+                        }
+                    }: user
+                )
+            );
+        }
+
+        const handleOffline = ({userId}) =>{
+            setUsers( prev =>
+                prev.map(user =>
+                    user.users.id === userId
+                    ? {
+                        ...user,
+                        users:{
+                            ...user.users,
+                            status: 'offline'
+                        }
+                    }: user
+                )
+            );
+        }
+
+        socket.on('userOnline', handleOnline);
+        socket.on('userOffline', handleOffline);
+        socket.on('receiveMessage',handleReceive);
+        socket.on('receiveNotification', handleNotification)
+
         return () =>{
+            socket.off('userOnline', handleOnline);
+            socket.off('userOffline', handleOffline);
+            socket.off('receiveMessage',handleReceive);
+            socket.off('receiveNotification',handleNotification);
             socket.disconnect();
         };
-    },[]);
+    },[accessToken]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex overflow-hidden relative">

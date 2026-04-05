@@ -10,17 +10,15 @@ export default function ChatHeader({ user, onBackClick }) {
         </button>
         <span className="text-4xl">{}</span>
         <div>
-          <h2 className="text-white font-semibold text-lg">{user.name}</h2>
+          <h2 className="text-white font-semibold text-lg">{user.users.name}</h2>
           <p
             className={`text-xs ${
-              user.status === 'online'
+              user.users.status === 'online'
                 ? 'text-green-400'
-                : user.status === 'away'
-                ? 'text-yellow-400'
                 : 'text-gray-400'
             }`}
           >
-            {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+            {user.users.status.charAt(0).toUpperCase() + user.users.status.slice(1)}
           </p>
         </div>
       </div>

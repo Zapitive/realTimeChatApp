@@ -13,13 +13,13 @@ export default function UserCard({ user, isSelected, getStatusColor, onSelectUse
           <span className="text-3xl">{user.avatar}</span>
           <div
             className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(
-              user.status
+              user?.users?.status ? user.users.status : user.status
             )} rounded-full border-2 border-slate-900`}
           ></div>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-semibold text-sm truncate">{user.name}</h3>
-          <p className="text-gray-400 text-xs truncate">{user.lastMessage}</p>
+          <h3 className="text-white font-semibold text-sm truncate">{user?.users?.name ? user.users.name : user.name}</h3>
+          <p className="text-gray-400 text-xs truncate">{user?.users?.lastMessage}</p>
         </div>
       </div>
     </button>

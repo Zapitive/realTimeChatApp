@@ -13,7 +13,7 @@ const connectDB = async () =>{
         });
         if (conn) {
             console.log('Connect to DB');
-            await Promise.all(models.map(m => m.init()));
+            await Promise.all(models.map(m => m.syncIndexes()));
             console.log('indexes on models Done');
         }
     }catch(error){
