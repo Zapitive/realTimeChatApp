@@ -48,7 +48,7 @@ export const useAxiosPrivate = () => {
       api.interceptors.request.eject(requestIntercept);
       api.interceptors.response.eject(responseIntercept);
     };
-  }, [accessToken, setAccessToken]);
+  }, []);
 
   return api;
 };

@@ -1,8 +1,8 @@
-import api from './axios';
+import {refreshApi} from './axios';
 
 export const refreshAccessToken = async (setAccessToken) =>{
     try{
-        const res = await api.post("/api/auth/refresh");
+        const res = await refreshApi.post("/api/auth/refresh");
         setAccessToken(res.data.token);
         return res.data.token;
 

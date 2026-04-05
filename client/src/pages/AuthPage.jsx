@@ -37,8 +37,6 @@ export default function AuthPage() {
                   withCredentials:true
                 }
             )
-            console.log(response.status);
-            console.log(response.data.message);
             setAccessToken(response.data.token);
         }else{
           if (formData.confirmPassword === formData.password){
@@ -51,8 +49,6 @@ export default function AuthPage() {
                   withCredentials:true
                 }
             )
-            console.log(response.status);
-            console.log(response.data.message);
             setAccessToken(response.data.token);
           }else{
             console.log("Password does not match");

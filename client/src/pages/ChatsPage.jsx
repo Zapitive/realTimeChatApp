@@ -203,7 +203,6 @@ export default function ChatsPage() {
 
     // creating chat room
     const createChatRoom = async (userId) => {
-        console.log('creating chatRoom',userId);
         try{
             const response = await api.post(
                 '/api/chats',{
@@ -213,7 +212,7 @@ export default function ChatsPage() {
                 }
             );
 
-            console.log(response.data.chatId);
+            
             return response.data.chatId
         }catch(err){
             console.log(err)
