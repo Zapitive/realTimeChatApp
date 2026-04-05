@@ -31,7 +31,6 @@ const searchUser = async(req,res) =>{
                 chats.flatMap(c => c.members)
             )
         ].filter(id => id.toString() !== userId.toString());
-        console.log(chats, contactedUsers)
 
         const users = await userInfo.find({
             $or:[

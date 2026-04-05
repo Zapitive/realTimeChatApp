@@ -75,8 +75,6 @@ const allChats = async (req, res) =>{
                 }
             }
         ])
-
-        console.log(results)
         res.status(200).json({message: "All chats received", chats:results})
 
 

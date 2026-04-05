@@ -20,7 +20,7 @@ PORT = process.env.PORT || 5001;
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: process.env.FRONTEND_URL,
     methods: ['GET', 'POST', 'DELETE'],
     credentials:true
 }));
