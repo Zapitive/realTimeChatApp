@@ -40,6 +40,7 @@ const initSocket = (server) =>{
                 socket.join(data.activeChatId);
         })
 
+        // send message event
         socket.on('sendMessage', async (data, callback) => {
             const {chatId, messageInp} = data;
 
@@ -63,7 +64,7 @@ const initSocket = (server) =>{
             });
             
             if(newMessage){
-
+                let messageStatus = 'sent';
                 await chatRoom.updateOne(
                     {_id:chatId},
                     {
@@ -78,17 +79,25 @@ const initSocket = (server) =>{
                 );
 
                 io.to(String(chatId)).emit('receiveMessage',newMessage);
-                io.to(String(receiverId)).emit('receiveNotification',newMessage)
+                io.to(String(receiverId)).emit('receiveNotification',newMessage);
             }
 
             callback({
                 status: "ok",
-                newMessage,
+                msgId: newMessage._id,
             });
         });
 
+        // message received event
+        socket.on('messageReceived',async (data)=>{
+            const {msgId, chatId, senderId} = data;
+            // write in DB on msgId received and userId received it
+
+            io.to(String(senderId)).emit('receivedUpdate',{msgId: msgId, chatId: chatId});
+        });
+
         socket.on('disconnect', async ()=>{
-            console.log('User disconnected', socket.id)
+            console.log('User disconnected', socket.id);
             
             const userSockets = onlineUsers.get(userId); // set of userId
 
@@ -98,8 +107,8 @@ const initSocket = (server) =>{
                 if (userSockets.size === 0){
                     // add debouncing for updating offline prevents flickering of online and offline
                     onlineUsers.delete(userId);
-                    await setUserOffline(userId)
-                    socket.broadcast.emit("userOffline", {userId})
+                    await setUserOffline(userId);
+                    socket.broadcast.emit("userOffline", {userId});
                 }
             }
         })
