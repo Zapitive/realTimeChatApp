@@ -145,7 +145,7 @@ export default function ChatsPage() {
                         ...prev,
                         [selectedUser]: prev[selectedUser].map(msg =>
                             msg.id === tempId
-                            ? msg.id = response.msgId
+                            ? {...msg, id : response.msgId, msgStatus: response.msgStatus}
                             : msg
                         )
                     }));

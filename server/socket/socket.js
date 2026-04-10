@@ -64,7 +64,6 @@ const initSocket = (server) =>{
             });
             
             if(newMessage){
-                let messageStatus = 'sent';
                 await chatRoom.updateOne(
                     {_id:chatId},
                     {
@@ -84,6 +83,7 @@ const initSocket = (server) =>{
 
             callback({
                 status: "ok",
+                msgStatus: 'sent',
                 msgId: newMessage._id,
             });
         });
