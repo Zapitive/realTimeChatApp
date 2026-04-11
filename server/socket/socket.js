@@ -3,6 +3,7 @@ const { authenticateSocketToken } = require('../middlewares/authMiddleware');
 const message = require('../models/messageModel');
 const chatRoom = require('../models/chatRoomModel');
 const { setUserOnline, setUserOffline } = require('../services/userService');
+const {messageReceivedUpdate, createNewMessage, receivedAllMessages} = require('../services/messageService');
 
 let io;
 
@@ -30,6 +31,7 @@ const initSocket = (server) =>{
         if(!onlineUsers.has(userId)){
             onlineUsers.set(userId, new Set());
             await setUserOnline(userId);
+            await receivedAllMessages(userId);
             socket.broadcast.emit("userOnline", {userId});
         }
 
@@ -57,11 +59,7 @@ const initSocket = (server) =>{
                 (id) => id.toString() !== userId.toString()
             );
 
-            const newMessage = await message.create({
-                chatId: chatId,
-                senderId: socket.user.id,
-                content: messageInp
-            });
+            const newMessage = await createNewMessage(chatId, socket.user.id, messageInp);
             
             if(newMessage){
                 await chatRoom.updateOne(
@@ -92,12 +90,13 @@ const initSocket = (server) =>{
         socket.on('messageReceived',async (data)=>{
             const {msgId, chatId, senderId} = data;
             // write in DB on msgId received and userId received it
+            await messageReceivedUpdate(msgId, userId);
 
             io.to(String(senderId)).emit('receivedUpdate',{msgId: msgId, chatId: chatId});
         });
 
         socket.on('disconnect', async ()=>{
-            console.log('User disconnected', socket.id);
+            // console.log('User disconnected', socket.id);
             
             const userSockets = onlineUsers.get(userId); // set of userId
 

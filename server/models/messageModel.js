@@ -20,7 +20,7 @@ const messageSchema = new Schema({
         enum : ['text', 'image', 'file'],
         default : 'text'
     },
-    deliveredTo : [
+    receivedBy : [
         {
             type : Schema.Types.ObjectId,
             ref : 'userInfo'
