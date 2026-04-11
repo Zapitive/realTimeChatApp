@@ -37,6 +37,7 @@ const messageSchema = new Schema({
 );
 
 messageSchema.index({chatId: 1, createdAt : -1});
+messageSchema.index({receivedBy: 1});
 
 const message = model('message',messageSchema);
 

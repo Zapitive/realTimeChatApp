@@ -20,6 +20,10 @@ const userInfoSchema = new Schema({
     status:{
         type: String,
         default: 'offline'
+    },
+    lastSeen:{
+        type: Date,
+        default: null   
     }
 },{
     timestamps: true

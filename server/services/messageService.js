@@ -1,5 +1,6 @@
 const chatRoom = require("../models/chatRoomModel");
-const message = require("../models/messageModel")
+const message = require("../models/messageModel");
+const userInfo = require("../models/userInfoModel");
 
 
 const messageReceivedUpdate = async(messageId, receiverId) =>{
@@ -25,11 +26,15 @@ const receivedAllMessages = async (userId) =>{
     }).select('_id');
 
     const chatIds = chats.map(chat => chat._id);
+    const user = await userInfo.findById(userId);
+
+    const lastSeen = user.lastSeen || new Date(0)
 
     return await message.updateMany({
         chatId: {$in: chatIds},
         senderId: {$ne: userId},
-        receivedBy: {$ne: userId}
+        receivedBy: {$ne: userId},
+        createdAt: {$gte: lastSeen}
     },{
         $addToSet: {receivedBy: userId}
     });

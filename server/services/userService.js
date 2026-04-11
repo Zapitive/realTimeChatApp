@@ -9,7 +9,8 @@ const setUserOnline = async (userId) =>{
 
 const setUserOffline = async (userId) =>{
     return await userInfo.findByIdAndUpdate(userId,{
-        status: 'offline'
+        status: 'offline',
+        lastSeen: new Date()
     })
 }
 
