@@ -104,6 +104,7 @@ export default function ChatsPage() {
             setSelectedUser(chatId);
         }else{
             socket.emit('joinRoom', {activeChatId: exists.id});
+            socket.emit('messageSeen', {chatId: exists.id});
             setSelectedUser(exists.id);
         } 
         setSearchQuery('');
@@ -389,6 +390,8 @@ export default function ChatsPage() {
             if (String(activeChatRef.current) !== String(msg.chatId)){
                 const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
                 alert(`${msg.content} from ${senderName} at ${formatted}`);
+            }else{
+                socket.emit('messageSeen', {chatId: activeChatRef.current});
             }
         }
 
@@ -405,6 +408,22 @@ export default function ChatsPage() {
                     : msg
                 )
             }));
+        }
+
+        const handleSeenUpdate = (data) =>{
+            const {chatId} = data;
+
+            if (String(activeChatRef.current) === String(chatId)){
+                setMessages(prev => ({
+                    ...prev,
+                    [chatId] : prev[chatId].map( msg =>
+                        msg.isOwn === true
+                        ? {...msg, msgStatus: 'seen'}
+                        : msg
+                    )
+                }));
+            }
+            
         }
 
         // user status update
@@ -443,6 +462,7 @@ export default function ChatsPage() {
         socket.on('receiveMessage',handleReceive);
         socket.on('receiveNotification', handleNotification);
         socket.on('receivedUpdate',handleReceivedUpdate);
+        socket.on('seenUpdate',handleSeenUpdate);
 
         return () =>{
             socket.off('userOnline', handleOnline);
@@ -450,6 +470,7 @@ export default function ChatsPage() {
             socket.off('receiveMessage',handleReceive);
             socket.off('receiveNotification',handleNotification);
             socket.off('receivedUpdate',handleReceivedUpdate);
+            socket.off('seenUpdate',handleSeenUpdate);
             socket.disconnect();
         };
     },[accessToken]);

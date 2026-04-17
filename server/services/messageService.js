@@ -26,7 +26,9 @@ const receivedAllMessages = async (userId) =>{
     }).select('_id');
 
     const chatIds = chats.map(chat => chat._id);
-    const user = await userInfo.findById(userId);
+    const user = await userInfo.findById(userId,{
+        lastSeen: 1
+    });
 
     const lastSeen = user.lastSeen || new Date(0)
 
@@ -36,9 +38,20 @@ const receivedAllMessages = async (userId) =>{
         receivedBy: {$ne: userId},
         createdAt: {$gte: lastSeen}
     },{
-        $addToSet: {receivedBy: userId}
+        $addToSet: {
+            receivedBy: userId
+        }
     });
 
 }
 
-module.exports = {messageReceivedUpdate, createNewMessage, receivedAllMessages}
+const seenAllChatMessages = async (userId, chatId) => {
+    return await message.updateMany({
+        chatId: chatId,
+        senderId: {$ne: userId}
+    },{
+        $addToSet : { seenBy: userId}
+    })
+}
+
+module.exports = {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages}

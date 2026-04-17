@@ -37,7 +37,8 @@ const messageSchema = new Schema({
 );
 
 messageSchema.index({chatId: 1, createdAt : -1});
-messageSchema.index({receivedBy: 1});
+// index not needed as createdAt will be checked with lastSeen, so creating unnecessary write overhead.
+// messageSchema.index({receivedBy: 1});
 
 const message = model('message',messageSchema);
 
