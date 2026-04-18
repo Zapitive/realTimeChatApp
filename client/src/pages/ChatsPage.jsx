@@ -104,7 +104,7 @@ export default function ChatsPage() {
             setSelectedUser(chatId);
         }else{
             socket.emit('joinRoom', {activeChatId: exists.id});
-            socket.emit('messageSeen', {chatId: exists.id});
+            socket.emit('messagesSeen', {chatId: exists.id});
             setSelectedUser(exists.id);
         } 
         setSearchQuery('');
@@ -391,7 +391,7 @@ export default function ChatsPage() {
                 const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
                 alert(`${msg.content} from ${senderName} at ${formatted}`);
             }else{
-                socket.emit('messageSeen', {chatId: activeChatRef.current});
+                socket.emit('messageSeen', {msgId: msg._id, senderId: msg.senderId, chatId: msg.chatId});
             }
         }
 
@@ -412,18 +412,27 @@ export default function ChatsPage() {
 
         const handleSeenUpdate = (data) =>{
             const {chatId} = data;
-
-            if (String(activeChatRef.current) === String(chatId)){
-                setMessages(prev => ({
-                    ...prev,
-                    [chatId] : prev[chatId].map( msg =>
-                        msg.isOwn === true
-                        ? {...msg, msgStatus: 'seen'}
-                        : msg
-                    )
-                }));
-            }
+            setMessages(prev => ({
+                ...prev,
+                [chatId] : prev[chatId].map( msg =>
+                    msg.isOwn === true
+                    ? {...msg, msgStatus: 'seen'}
+                    : msg
+                )
+            }));
             
+        }
+
+        const handleSeenMessage = (data) =>{
+            const {msgId, chatId} = data
+            setMessages(prev => ({
+                ...prev,
+                [chatId] : prev[chatId].map( msg =>
+                    msg.id === String(msgId)
+                    ? {...msg, msgStatus: 'seen'}
+                    : msg
+                )
+            }));
         }
 
         // user status update
@@ -463,6 +472,7 @@ export default function ChatsPage() {
         socket.on('receiveNotification', handleNotification);
         socket.on('receivedUpdate',handleReceivedUpdate);
         socket.on('seenUpdate',handleSeenUpdate);
+        socket.on('seenSingleMessage',handleSeenMessage);
 
         return () =>{
             socket.off('userOnline', handleOnline);
@@ -471,6 +481,7 @@ export default function ChatsPage() {
             socket.off('receiveNotification',handleNotification);
             socket.off('receivedUpdate',handleReceivedUpdate);
             socket.off('seenUpdate',handleSeenUpdate);
+            socket.off('seenSingleMessage',handleSeenMessage);
             socket.disconnect();
         };
     },[accessToken]);

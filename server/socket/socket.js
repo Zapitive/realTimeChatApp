@@ -3,7 +3,7 @@ const { authenticateSocketToken } = require('../middlewares/authMiddleware');
 const message = require('../models/messageModel');
 const chatRoom = require('../models/chatRoomModel');
 const { setUserOnline, setUserOffline } = require('../services/userService');
-const {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages} = require('../services/messageService');
+const {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages, seenSingleMessage} = require('../services/messageService');
 const { getChatMembers } = require('../services/chatRoomService');
 
 let io;
@@ -96,15 +96,22 @@ const initSocket = (server) =>{
             io.to(String(senderId)).emit('receivedUpdate',{msgId: msgId, chatId: chatId});
         });
 
-        socket.on('messageSeen', async (data)=>{
+        socket.on('messagesSeen', async (data)=>{
             const {chatId} = data;
-            console.log('msg seen called');
+            
             await seenAllChatMessages(userId, chatId);
             const chatMembers = await getChatMembers(chatId);
             const receiverId = chatMembers.members.find(
                 (id) => String(id) !== String(userId)
             );
             io.to(String(receiverId)).emit('seenUpdate', {chatId: chatId});
+        });
+
+        socket.on('messageSeen', async (data) =>{
+            const {msgId, senderId, chatId} = data;
+
+            await seenSingleMessage(userId, msgId);
+            io.to(String(senderId)).emit('seenSingleMessage',{msgId: msgId, chatId: chatId});
         })
 
         socket.on('disconnect', async ()=>{

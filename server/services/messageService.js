@@ -46,12 +46,26 @@ const receivedAllMessages = async (userId) =>{
 }
 
 const seenAllChatMessages = async (userId, chatId) => {
+    const lastSeenMsg = await message.findOne({
+        chatId: chatId,
+        seenBy: userId
+    }).sort({createdAt: -1}).select({createdAt: 1})
+    
     return await message.updateMany({
         chatId: chatId,
-        senderId: {$ne: userId}
+        senderId: {$ne: userId},
+        seenBy: {$nin: [userId]},
+        createdAt: {$gte: lastSeenMsg?.createdAt || new Date(0)}
     },{
         $addToSet : { seenBy: userId}
     })
 }
 
-module.exports = {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages}
+const seenSingleMessage = async (userId, msgId) =>{
+    return await message.findByIdAndUpdate(
+        msgId,
+        {$addToSet: {seenBy: userId}}
+    )
+}
+
+module.exports = {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages, seenSingleMessage}
