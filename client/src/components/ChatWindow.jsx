@@ -12,13 +12,15 @@ export default function ChatWindow({
   onSendMessage,
   onBackClick,
   onOpenMessages,
+  containerRef,
+  messagesEndRef
 }) {
   return (
     <div className="flex-1 flex flex-col h-screen backdrop-blur-xl bg-white/5 border-l border-white/10 overflow-hidden">
       {selectedUser ? (
         <>
           <ChatHeader user={currentUser} onBackClick={onBackClick} />
-          <MessagesList messages={currentMessages} />
+          <MessagesList messages={currentMessages} containerRef={containerRef} messagesEndRef={messagesEndRef} />
           <MessageInput
             inputMessage={inputMessage}
             onInputChange={onInputChange}

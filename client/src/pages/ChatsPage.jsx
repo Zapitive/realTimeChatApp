@@ -48,6 +48,8 @@ export default function ChatsPage() {
 
     const usersRef = useRef(users);
     const activeChatRef = useRef(selectedUser);
+    const containerRef = useRef(null);
+    const messagesEndRef = useRef(null);
 
     const [loading, setLoading] = useState({
         chats: false,
@@ -181,18 +183,15 @@ export default function ChatsPage() {
         const value = e.target.value;
         setInputMessage(value);
 
-        // START typing (only once)
         if (!isTyping) {
             setIsTyping(true);
             socket.emit("typing", { chatId: selectedUser });
         }
 
-        // CLEAR previous timeout
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
         }
 
-        // SET new timeout → STOP typing
         typingTimeoutRef.current = setTimeout(() => {
             socket.emit("stopTyping", { chatId: selectedUser });
             setIsTyping(false);
@@ -317,8 +316,27 @@ export default function ChatsPage() {
         usersRef.current = users;
         activeChatRef.current = selectedUser;
 
+        const el = containerRef.current;
+        if (el){
+            const isNearBottom =
+                el.scrollHeight - el.scrollTop - el.clientHeight < 400;
+
+            if (isNearBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+
         return () => controller.abort();
-    },[selectedUser, messages, users])
+    },[selectedUser, messages, users]);
+
+    useEffect(() => {
+        if (!messagesEndRef.current) return;
+
+        const timer = setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({
+            behavior: "auto"
+            });
+        }, 50);
+    }, [selectedUser]);
 
     //getting all chats
 
@@ -344,6 +362,12 @@ export default function ChatsPage() {
         getChats();
         
     },[api]);
+
+    
+
+    useEffect(() => {
+        
+    }, [messages]);
 
     
 
@@ -587,6 +611,8 @@ export default function ChatsPage() {
             onSendMessage={handleSendMessage}
             onBackClick={handleBackClick}
             onOpenMessages={handleOpenMessages}
+            containerRef = {containerRef}
+            messagesEndRef = {messagesEndRef}
         />
         </div>
     );

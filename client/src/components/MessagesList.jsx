@@ -1,11 +1,12 @@
 import MessageBubble from './MessageBubble';
 
-export default function MessagesList({ messages }) {
+export default function MessagesList({ messages, containerRef, messagesEndRef }) {
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-4">
+    <div className="flex-1 overflow-y-auto scrollbar-hide py-2 pb-0 px-6 space-y-4" ref={containerRef}>
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
+      <div ref={messagesEndRef}/>
     </div>
   );
 }
