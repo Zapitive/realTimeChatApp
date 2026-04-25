@@ -64,7 +64,7 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    console.log(messages)
+    // console.log(messages)
     const currentUser = selectedUser ? users.find(u => u.id === selectedUser) : null;
     
     const currentMessages = selectedUser ? (messages[selectedUser] || []) : [];
@@ -119,7 +119,7 @@ export default function ChatsPage() {
             const newMessage = {
                 id: tempId,
                 text: inputMessage,
-                timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isOwn: true,
             };
             setMessages(prev => ({
