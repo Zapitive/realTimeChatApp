@@ -43,6 +43,9 @@ export default function ChatsPage() {
         // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
     ]);
 
+    const [isTyping, setIsTyping] = useState(false);
+    const typingTimeoutRef = useRef(null);
+
     const usersRef = useRef(users);
     const activeChatRef = useRef(selectedUser);
 
@@ -175,6 +178,25 @@ export default function ChatsPage() {
 
     const handleInputChange = (e) => {
         setInputMessage(e.target.value);
+        const value = e.target.value;
+        setInputMessage(value);
+
+        // START typing (only once)
+        if (!isTyping) {
+            setIsTyping(true);
+            socket.emit("typing", { chatId: selectedUser });
+        }
+
+        // CLEAR previous timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        // SET new timeout → STOP typing
+        typingTimeoutRef.current = setTimeout(() => {
+            socket.emit("stopTyping", { chatId: selectedUser });
+            setIsTyping(false);
+        }, 1000);
     };
 
     // api calls
@@ -412,6 +434,7 @@ export default function ChatsPage() {
 
         const handleSeenUpdate = (data) =>{
             const {chatId} = data;
+            if (!messages[chatId]?.length) return;
             setMessages(prev => ({
                 ...prev,
                 [chatId] : prev[chatId].map( msg =>
@@ -466,6 +489,22 @@ export default function ChatsPage() {
             );
         }
 
+        const handleTyping = ({ chatId })=>{
+            setMessages(prev => ({
+                ...prev,
+                [chatId] : [
+                    ...(prev[chatId] || []),
+                    { id: 1, text: '...', isOwn: false }
+                ]
+            }));
+        }
+        const handleStopTyping = ({ chatId })=>{
+            setMessages(prev => ({
+                ...prev,
+                [chatId]: prev[chatId].filter(msg => msg.id !== 1)
+            }));
+        }
+
         socket.on('userOnline', handleOnline);
         socket.on('userOffline', handleOffline);
         socket.on('receiveMessage',handleReceive);
@@ -473,6 +512,8 @@ export default function ChatsPage() {
         socket.on('receivedUpdate',handleReceivedUpdate);
         socket.on('seenUpdate',handleSeenUpdate);
         socket.on('seenSingleMessage',handleSeenMessage);
+        socket.on('typing',handleTyping);
+        socket.on('stopTyping',handleStopTyping);
 
         return () =>{
             socket.off('userOnline', handleOnline);
@@ -482,6 +523,8 @@ export default function ChatsPage() {
             socket.off('receivedUpdate',handleReceivedUpdate);
             socket.off('seenUpdate',handleSeenUpdate);
             socket.off('seenSingleMessage',handleSeenMessage);
+            socket.off('typing',handleTyping);
+            socket.off('stopTyping',handleStopTyping);
             socket.disconnect();
         };
     },[accessToken]);
