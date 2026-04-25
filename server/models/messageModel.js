@@ -20,6 +20,12 @@ const messageSchema = new Schema({
         enum : ['text', 'image', 'file'],
         default : 'text'
     },
+    receivedBy : [
+        {
+            type : Schema.Types.ObjectId,
+            ref : 'userInfo'
+        }
+    ],
     seenBy : [
         {
             type : Schema.Types.ObjectId,
@@ -31,6 +37,8 @@ const messageSchema = new Schema({
 );
 
 messageSchema.index({chatId: 1, createdAt : -1});
+// index not needed as createdAt will be checked with lastSeen, so creating unnecessary write overhead.
+// messageSchema.index({receivedBy: 1});
 
 const message = model('message',messageSchema);
 

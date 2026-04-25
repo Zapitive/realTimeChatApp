@@ -64,7 +64,7 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    // console.log(users)
+    // console.log(messages)
     const currentUser = selectedUser ? users.find(u => u.id === selectedUser) : null;
     
     const currentMessages = selectedUser ? (messages[selectedUser] || []) : [];
@@ -104,6 +104,7 @@ export default function ChatsPage() {
             setSelectedUser(chatId);
         }else{
             socket.emit('joinRoom', {activeChatId: exists.id});
+            socket.emit('messagesSeen', {chatId: exists.id});
             setSelectedUser(exists.id);
         } 
         setSearchQuery('');
@@ -114,11 +115,11 @@ export default function ChatsPage() {
     const handleSendMessage = (e) => {
         e.preventDefault();
         if (inputMessage.trim() && selectedUser) {
-            
+            const tempId = (currentMessages.length || 0) + 1;
             const newMessage = {
-                id: (currentMessages.length || 0) + 1,
+                id: tempId,
                 text: inputMessage,
-                timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isOwn: true,
             };
             setMessages(prev => ({
@@ -139,8 +140,16 @@ export default function ChatsPage() {
                             }
                             }
                         : chat
-                    )
-                    );
+                    ));
+
+                    setMessages(prev =>({
+                        ...prev,
+                        [selectedUser]: prev[selectedUser].map(msg =>
+                            msg.id === tempId
+                            ? {...msg, id : response.msgId, msgStatus: response.msgStatus}
+                            : msg
+                        )
+                    }));
                 }else{
                     // can add features for not sent message
                     console.log('no response')
@@ -353,6 +362,8 @@ export default function ChatsPage() {
         }
 
         const handleNotification = (msg) =>{
+            socket.emit('messageReceived',{msgId: msg._id, chatId: msg.chatId, senderId: msg.senderId});
+
             const date = new Date(msg.createdAt);
 
             const formatted = date.toLocaleTimeString([],{
@@ -379,8 +390,49 @@ export default function ChatsPage() {
             if (String(activeChatRef.current) !== String(msg.chatId)){
                 const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
                 alert(`${msg.content} from ${senderName} at ${formatted}`);
+            }else{
+                socket.emit('messageSeen', {msgId: msg._id, senderId: msg.senderId, chatId: msg.chatId});
             }
+        }
 
+        const handleReceivedUpdate = async(data)=>{
+
+            const {msgId, chatId, senderId} = data;
+
+            
+            setMessages(prev => ({
+                ...prev,
+                [chatId] : prev[chatId].map( msg =>
+                    msg.id === msgId
+                    ? {...msg, msgStatus: 'received'}
+                    : msg
+                )
+            }));
+        }
+
+        const handleSeenUpdate = (data) =>{
+            const {chatId} = data;
+            setMessages(prev => ({
+                ...prev,
+                [chatId] : prev[chatId].map( msg =>
+                    msg.isOwn === true
+                    ? {...msg, msgStatus: 'seen'}
+                    : msg
+                )
+            }));
+            
+        }
+
+        const handleSeenMessage = (data) =>{
+            const {msgId, chatId} = data
+            setMessages(prev => ({
+                ...prev,
+                [chatId] : prev[chatId].map( msg =>
+                    msg.id === String(msgId)
+                    ? {...msg, msgStatus: 'seen'}
+                    : msg
+                )
+            }));
         }
 
         // user status update
@@ -417,13 +469,19 @@ export default function ChatsPage() {
         socket.on('userOnline', handleOnline);
         socket.on('userOffline', handleOffline);
         socket.on('receiveMessage',handleReceive);
-        socket.on('receiveNotification', handleNotification)
+        socket.on('receiveNotification', handleNotification);
+        socket.on('receivedUpdate',handleReceivedUpdate);
+        socket.on('seenUpdate',handleSeenUpdate);
+        socket.on('seenSingleMessage',handleSeenMessage);
 
         return () =>{
             socket.off('userOnline', handleOnline);
             socket.off('userOffline', handleOffline);
             socket.off('receiveMessage',handleReceive);
             socket.off('receiveNotification',handleNotification);
+            socket.off('receivedUpdate',handleReceivedUpdate);
+            socket.off('seenUpdate',handleSeenUpdate);
+            socket.off('seenSingleMessage',handleSeenMessage);
             socket.disconnect();
         };
     },[accessToken]);

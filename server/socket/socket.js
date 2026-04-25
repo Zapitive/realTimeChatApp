@@ -3,6 +3,8 @@ const { authenticateSocketToken } = require('../middlewares/authMiddleware');
 const message = require('../models/messageModel');
 const chatRoom = require('../models/chatRoomModel');
 const { setUserOnline, setUserOffline } = require('../services/userService');
+const {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages, seenSingleMessage} = require('../services/messageService');
+const { getChatMembers } = require('../services/chatRoomService');
 
 let io;
 
@@ -30,6 +32,7 @@ const initSocket = (server) =>{
         if(!onlineUsers.has(userId)){
             onlineUsers.set(userId, new Set());
             await setUserOnline(userId);
+            await receivedAllMessages(userId);
             socket.broadcast.emit("userOnline", {userId});
         }
 
@@ -40,6 +43,7 @@ const initSocket = (server) =>{
                 socket.join(data.activeChatId);
         })
 
+        // send message event
         socket.on('sendMessage', async (data, callback) => {
             const {chatId, messageInp} = data;
 
@@ -56,14 +60,9 @@ const initSocket = (server) =>{
                 (id) => id.toString() !== userId.toString()
             );
 
-            const newMessage = await message.create({
-                chatId: chatId,
-                senderId: socket.user.id,
-                content: messageInp
-            });
+            const newMessage = await createNewMessage(chatId, socket.user.id, messageInp);
             
             if(newMessage){
-
                 await chatRoom.updateOne(
                     {_id:chatId},
                     {
@@ -78,17 +77,45 @@ const initSocket = (server) =>{
                 );
 
                 io.to(String(chatId)).emit('receiveMessage',newMessage);
-                io.to(String(receiverId)).emit('receiveNotification',newMessage)
+                io.to(String(receiverId)).emit('receiveNotification',newMessage);
             }
 
             callback({
                 status: "ok",
-                newMessage,
+                msgStatus: 'sent',
+                msgId: newMessage._id,
             });
         });
 
+        // message received event
+        socket.on('messageReceived',async (data)=>{
+            const {msgId, chatId, senderId} = data;
+            // write in DB on msgId received and userId received it
+            await messageReceivedUpdate(msgId, userId);
+
+            io.to(String(senderId)).emit('receivedUpdate',{msgId: msgId, chatId: chatId});
+        });
+
+        socket.on('messagesSeen', async (data)=>{
+            const {chatId} = data;
+            
+            await seenAllChatMessages(userId, chatId);
+            const chatMembers = await getChatMembers(chatId);
+            const receiverId = chatMembers.members.find(
+                (id) => String(id) !== String(userId)
+            );
+            io.to(String(receiverId)).emit('seenUpdate', {chatId: chatId});
+        });
+
+        socket.on('messageSeen', async (data) =>{
+            const {msgId, senderId, chatId} = data;
+
+            await seenSingleMessage(userId, msgId);
+            io.to(String(senderId)).emit('seenSingleMessage',{msgId: msgId, chatId: chatId});
+        })
+
         socket.on('disconnect', async ()=>{
-            console.log('User disconnected', socket.id)
+            // console.log('User disconnected', socket.id);
             
             const userSockets = onlineUsers.get(userId); // set of userId
 
@@ -98,8 +125,8 @@ const initSocket = (server) =>{
                 if (userSockets.size === 0){
                     // add debouncing for updating offline prevents flickering of online and offline
                     onlineUsers.delete(userId);
-                    await setUserOffline(userId)
-                    socket.broadcast.emit("userOffline", {userId})
+                    await setUserOffline(userId);
+                    socket.broadcast.emit("userOffline", {userId});
                 }
             }
         })
