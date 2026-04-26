@@ -5,8 +5,7 @@ import MobileOverlay from '../components/MobileOverlay';
 import { useAxiosPrivate } from '../api/axiosPrivate';
 import { useAuth } from '../context/authContext';
 import { useSocketWithAuth } from '../socket/useSocketWithAuth';
-
-
+import toast from 'react-hot-toast';
 
 export default function ChatsPage() {
 
@@ -21,26 +20,23 @@ export default function ChatsPage() {
     const [showSidebar, setShowSidebar] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
     const [chats, setChats] = useState({
-        // 1: [
-        // { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
-        // { id: 2, sender: 'You', text: 'I\'m doing great! Just working on some projects.', timestamp: '10:31 AM', isOwn: true },
-        // { id: 3, sender: 'Sarah Johnson', text: 'That sounds amazing! Tell me more 😊', timestamp: '10:32 AM', isOwn: false },
-        // { id: 4, sender: 'You', text: 'Building a chat app with React and Tailwind CSS', timestamp: '10:33 AM', isOwn: true },
-        // ],
-        // 2: [
-        // { id: 1, sender: 'Alex Chen', text: 'Meeting at 2 PM?', timestamp: '2:15 PM', isOwn: false },
-        // { id: 2, sender: 'You', text: 'Sure! I\'ll be there', timestamp: '2:16 PM', isOwn: true },
-        // ],
-        // 3: [
-        // { id: 1, sender: 'Emma Davis', text: 'Did you see the latest update?', timestamp: '3:45 PM', isOwn: false },
-        // ],
+        /* example
+        chatId:{
+            messages: [
+                id: 1234,
+                isOwn: true,
+                timeStamp: Date(),
+                msgStatus: 'sent',
+                text: 'Hey'
+            ],
+            hasMore: true,
+            cursor: Date(),
+            isTyping: true}
+        */
     });
-
-    // User Data
     const [users, setUsers] = useState([
-        // example User from backend
+        // example
         // { id: 1, users:{name: 'Sarah Johnson', status: 'online', lastMessage: 'That sounds amazing! Tell me more 😊'} },
-        // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
     ]);
 
     const [isTyping, setIsTyping] = useState(false);
@@ -67,7 +63,6 @@ export default function ChatsPage() {
 
 
     // Computed Values
-    const filteredUsers = users;
 
     // displaying current chat in chat window
     // console.log(chats[activeChatId]?.messages.length)
@@ -206,7 +201,6 @@ export default function ChatsPage() {
     const handleInputChange = (e) => {
         setInputMessage(e.target.value);
         const value = e.target.value;
-        setInputMessage(value);
 
         if (!isTyping) {
             setIsTyping(true);
@@ -466,6 +460,7 @@ export default function ChatsPage() {
                     }
                 );
                 setUsers(response.data.chats || []);
+                usersRef.current = response.data.chats || [];
             }catch(err){
                 showError('Failed to load chats!');
                 console.log(err);
@@ -477,9 +472,10 @@ export default function ChatsPage() {
 
         getChats();
         
-    },[api]);
+        
+    },[]);
 
-    // socket connection
+    // socket methods
     useEffect(() =>{
         if(!socket.connected){
             socket.auth = {
@@ -553,8 +549,9 @@ export default function ChatsPage() {
             );
 
             if (String(activeChatRef.current) !== String(msg.chatId)){
-                const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
-                alert(`${msg.content} from ${senderName} at ${formatted}`);
+                const user = usersRef.current.find(u => u.id === String(msg.chatId));
+                const senderName = user?.users?.name;
+                toast(`${msg.content} from ${senderName} at ${formatted}`, {duration: 3500, position: 'top-center'})
             }else{
                 socket.emit('messageSeen', {msgId: msg._id, senderId: msg.senderId, chatId: msg.chatId});
             }
@@ -724,7 +721,7 @@ export default function ChatsPage() {
 
         {/* Left Sidebar */}
         <UserSidebar
-            filteredUsers={filteredUsers}
+            filteredUsers={users}
             selectedUser={activeChatId}
             showSidebar={showSidebar}
             searchResults={searchResults}
