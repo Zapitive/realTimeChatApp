@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import UserSidebar from '../components/UserSidebar';
 import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
@@ -50,6 +50,7 @@ export default function ChatsPage() {
     const activeChatRef = useRef(activeChatId);
     const containerRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const prevScrollHeightRef = useRef(0)
 
     const [loading, setLoading] = useState({
         chats: false,
@@ -69,7 +70,7 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    console.log(chats[activeChatId]?.messages.length)
+    // console.log(chats[activeChatId]?.messages.length)
     const currentUser = activeChatId ? users.find(u => u.id === activeChatId) : null;
     
     const currentMessages = activeChatId ? (chats[activeChatId] || {
@@ -201,55 +202,6 @@ export default function ChatsPage() {
     const handleCloseSidebar = () => {
         setShowSidebar(false);
     };
-
-    const handleScroll = async() =>{
-        const container = containerRef.current;
-
-        if (!container) return;
-
-        if (loading.messages || !chats[activeChatId].hasMore) return;
-
-        if(container.scrollTop <= 0){
-            const chatId = activeChatRef.current
-            const params = { chatId };
-
-            if(chats[activeChatId]?.cursor){
-                params.cursorCreatedAt = chats[activeChatId].cursor;
-            }
-            const res = await getMessages(params);
-            const formatted = res.chatMessages
-                .slice()
-                .reverse()
-                .map((msg) => {
-                    const date = new Date(msg.timestamp);
-                    return {
-                        ...msg,
-                        timestamp: date.toLocaleTimeString([],{
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }),
-                    };    
-            });
-            console.log(formatted)
-            setChats((prev) =>{
-                const existing = prev[chatId] || {
-                    messages: [],
-                    cursor: null,
-                    hasMore: true,
-                };
-
-                return {
-                    ...prev,
-                    [chatId]: {
-                        messages:[...formatted, ...existing.messages],
-                        cursor: res.nextCursor,
-                        hasMore: !!res.nextCursor,
-                    },
-                };
-            });
-        }
-
-    }
 
     const handleInputChange = (e) => {
         setInputMessage(e.target.value);
@@ -400,17 +352,72 @@ export default function ChatsPage() {
             setLoadingState('messages',false);
         }
     }
+//--------------------------------------------------------infinite Scroll for  messages----------------------------------------------------------------------------
+    const handleScroll = useCallback(async () => {
+        const container = containerRef.current;
+
+        if (!container) return;
+        if (loading.messages || !chats[activeChatId]?.hasMore) return;
+
+        if (container.scrollTop <= 0) {
+            const chatId = activeChatRef.current;
+            const params = { chatId };
+
+            if (chats[activeChatId]?.cursor) {
+                params.cursorCreatedAt = chats[activeChatId].cursor;
+            }
+
+            prevScrollHeightRef.current = container.scrollHeight;
+
+            const res = await getMessages(params);
+            const formatted = res.chatMessages
+                .slice()
+                .reverse()
+                .map((msg) => {
+                    const date = new Date(msg.timestamp);
+                    return {
+                        ...msg,
+                        timestamp: date.toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }),
+                    };
+                });
+
+            setChats((prev) => {
+                const existing = prev[chatId] || {
+                    messages: [],
+                    cursor: null,
+                    hasMore: true,
+                };
+                return {
+                    ...prev,
+                    [chatId]: {
+                        messages: [...formatted, ...existing.messages],
+                        cursor: res.nextCursor,
+                        hasMore: !!res.nextCursor,
+                    },
+                };
+            });
+        }
+    }, [activeChatId, loading.messages, chats]);
 
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
-        container.addEventListener("scroll", handleScroll);
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [handleScroll]);
 
-        return () => {
-            container.removeEventListener("scroll", handleScroll);
-        };
-    }, [chats[activeChatId], loading.messages]);
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container || !prevScrollHeightRef.current) return;
+
+        const newScrollHeight = container.scrollHeight;
+        container.scrollTop = newScrollHeight - prevScrollHeightRef.current;
+        prevScrollHeightRef.current = 0; 
+    }, [chats[activeChatId]?.messages?.length]);
 
 //--------------------- try to combine the both useEffects---------------------------------------------------------------------------------------------------------
     useEffect(()=>{
@@ -677,50 +684,32 @@ export default function ChatsPage() {
 
         socket.on('userOnline', handleOnline);
         socket.on('userOffline', handleOffline);
-        socket.on('receiveMessage',handleReceive);
+        socket.on('receiveMessage', handleReceive);
         socket.on('receiveNotification', handleNotification);
-        socket.on('receivedUpdate',handleReceivedUpdate);
-        socket.on('seenUpdate',handleSeenUpdate);
-        socket.on('seenSingleMessage',handleSeenMessage);
-        socket.on('typing',handleTyping);
-        socket.on('stopTyping',handleStopTyping);
+        socket.on('receivedUpdate', handleReceivedUpdate);
+        socket.on('seenUpdate', handleSeenUpdate);
+        socket.on('seenSingleMessage', handleSeenMessage);
+        socket.on('typing', handleTyping);
+        socket.on('stopTyping', handleStopTyping);
 
         return () =>{
             socket.off('userOnline', handleOnline);
             socket.off('userOffline', handleOffline);
-            socket.off('receiveMessage',handleReceive);
-            socket.off('receiveNotification',handleNotification);
-            socket.off('receivedUpdate',handleReceivedUpdate);
-            socket.off('seenUpdate',handleSeenUpdate);
-            socket.off('seenSingleMessage',handleSeenMessage);
-            socket.off('typing',handleTyping);
-            socket.off('stopTyping',handleStopTyping);
+            socket.off('receiveMessage', handleReceive);
+            socket.off('receiveNotification', handleNotification);
+            socket.off('receivedUpdate', handleReceivedUpdate);
+            socket.off('seenUpdate', handleSeenUpdate);
+            socket.off('seenSingleMessage', handleSeenMessage);
+            socket.off('typing', handleTyping);
+            socket.off('stopTyping', handleStopTyping);
             socket.disconnect();
         };
     },[accessToken]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex overflow-hidden relative">
-        {/* Animated background elements */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
 
         <style>{`
-            @keyframes blob {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -50px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
-            }
-            .animate-blob {
-            animation: blob 7s infinite;
-            }
-            .animation-delay-2000 {
-            animation-delay: 2s;
-            }
-            .animation-delay-4000 {
-            animation-delay: 4s;
-            }
             .scrollbar-hide::-webkit-scrollbar {
             display: none;
             }
