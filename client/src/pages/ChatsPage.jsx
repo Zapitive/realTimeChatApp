@@ -69,7 +69,7 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    // console.log(chats[activeChatId])
+    console.log(chats[activeChatId]?.messages.length)
     const currentUser = activeChatId ? users.find(u => u.id === activeChatId) : null;
     
     const currentMessages = activeChatId ? (chats[activeChatId] || {
@@ -201,6 +201,55 @@ export default function ChatsPage() {
     const handleCloseSidebar = () => {
         setShowSidebar(false);
     };
+
+    const handleScroll = async() =>{
+        const container = containerRef.current;
+
+        if (!container) return;
+
+        if (loading.messages || !chats[activeChatId].hasMore) return;
+
+        if(container.scrollTop <= 0){
+            const chatId = activeChatRef.current
+            const params = { chatId };
+
+            if(chats[activeChatId]?.cursor){
+                params.cursorCreatedAt = chats[activeChatId].cursor;
+            }
+            const res = await getMessages(params);
+            const formatted = res.chatMessages
+                .slice()
+                .reverse()
+                .map((msg) => {
+                    const date = new Date(msg.timestamp);
+                    return {
+                        ...msg,
+                        timestamp: date.toLocaleTimeString([],{
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
+                    };    
+            });
+            console.log(formatted)
+            setChats((prev) =>{
+                const existing = prev[chatId] || {
+                    messages: [],
+                    cursor: null,
+                    hasMore: true,
+                };
+
+                return {
+                    ...prev,
+                    [chatId]: {
+                        messages:[...formatted, ...existing.messages],
+                        cursor: res.nextCursor,
+                        hasMore: !!res.nextCursor,
+                    },
+                };
+            });
+        }
+
+    }
 
     const handleInputChange = (e) => {
         setInputMessage(e.target.value);
@@ -351,6 +400,17 @@ export default function ChatsPage() {
             setLoadingState('messages',false);
         }
     }
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.addEventListener("scroll", handleScroll);
+
+        return () => {
+            container.removeEventListener("scroll", handleScroll);
+        };
+    }, [chats[activeChatId], loading.messages]);
 
 //--------------------- try to combine the both useEffects---------------------------------------------------------------------------------------------------------
     useEffect(()=>{
