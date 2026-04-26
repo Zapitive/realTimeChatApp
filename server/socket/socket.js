@@ -112,7 +112,17 @@ const initSocket = (server) =>{
 
             await seenSingleMessage(userId, msgId);
             io.to(String(senderId)).emit('seenSingleMessage',{msgId: msgId, chatId: chatId});
-        })
+        });
+
+        socket.on('typing', (data) =>{
+            const {chatId} = data;
+            socket.to(String(chatId)).emit('typing', {chatId});
+        });
+
+        socket.on('stopTyping', (data) =>{
+            const {chatId} = data;
+            socket.to(chatId).emit('stopTyping', {chatId});
+        });
 
         socket.on('disconnect', async ()=>{
             // console.log('User disconnected', socket.id);

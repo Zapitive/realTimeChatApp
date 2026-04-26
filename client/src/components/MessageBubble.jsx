@@ -44,7 +44,7 @@ export default function MessageBubble({ message }) {
       >
         <p className="text-sm">{message.text}</p>
         <p className={`flex text-xs mt-1 ${message.isOwn ? 'text-purple-100 justify-end' : 'text-gray-400 justify-start'}`}>
-          {message.timestamp}
+          {message?.timestamp}
           &nbsp;
           {renderStatus(message)}
         </p>

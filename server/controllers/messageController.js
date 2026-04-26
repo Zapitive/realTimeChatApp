@@ -4,14 +4,33 @@ const message = require("../models/messageModel");
 
 const getMessages = async (req, res) =>{
     try{   
-        const chatId = req.query?.chatId || "";
+        const {chatId, cursorCreatedAt} = req.query;
         const userId = req.user.id;
 
-        const messages = await message.find({chatId: chatId}).limit(20);
-        const chat = await chatRoom.findById({_id: chatId},{
-            _id: 0,
-            members: 1
-        });
+        if (!chatId){
+            return res.status(400).json({message: "chatId is required"})
+        }
+
+        const chat = await chatRoom.findById(chatId).select("members");
+
+        if (!chat || !chat.members.includes(userId)) {
+            return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const query = { chatId };
+
+        if (cursorCreatedAt){
+            query.createdAt = {$lt: new Date(cursorCreatedAt)}
+        }
+
+        const messages = await message.find(query).sort({createdAt: -1}).limit(20);
+
+        let nextCursor = null;
+
+        if (messages.length > 0) {
+            const last = messages[messages.length - 1];
+            nextCursor = last.createdAt;
+        }
 
         const chatMessages = messages.map((msg) =>{
             
@@ -41,8 +60,9 @@ const getMessages = async (req, res) =>{
         });
 
         if(messages){
-            res.status(200).json({message: 'Found old messages', chatMessages: chatMessages})
+            return res.status(200).json({message: 'Found old messages', chatMessages: chatMessages, nextCursor: nextCursor})
         }
+        res.status(200).json({message:"No messages Found"})
     }catch(err){
         console.log(err)
     }
