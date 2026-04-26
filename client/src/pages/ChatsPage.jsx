@@ -69,10 +69,15 @@ export default function ChatsPage() {
     const filteredUsers = users;
 
     // displaying current chat in chat window
-    console.log(chats[activeChatId]?.messages)
+    // console.log(chats[activeChatId])
     const currentUser = activeChatId ? users.find(u => u.id === activeChatId) : null;
     
-    const currentMessages = activeChatId ? (chats[activeChatId]?.messages || []) : [];
+    const currentMessages = activeChatId ? (chats[activeChatId] || {
+        messages: [],
+        cursor: null,
+        hasMore: true,
+        isTyping: false
+    }) : {};
 
     // Helper Functions
     const getStatusColor = (status) => {
@@ -694,7 +699,6 @@ export default function ChatsPage() {
             onOpenMessages={handleOpenMessages}
             containerRef = {containerRef}
             messagesEndRef = {messagesEndRef}
-            isTyping = {chats[activeChatId]?.isTyping}
         />
         </div>
     );
