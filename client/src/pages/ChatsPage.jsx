@@ -46,7 +46,7 @@ export default function ChatsPage() {
     const activeChatRef = useRef(activeChatId);
     const containerRef = useRef(null);
     const messagesEndRef = useRef(null);
-    const prevScrollHeightRef = useRef(0)
+    const prevScrollHeightRef = useRef(0);
 
     const [loading, setLoading] = useState({
         chats: false,
@@ -65,7 +65,7 @@ export default function ChatsPage() {
     // Computed Values
 
     // displaying current chat in chat window
-    // console.log(chats[activeChatId]?.messages.length)
+    // console.log(chats)
     const currentUser = activeChatId ? users.find(u => u.id === activeChatId) : null;
     
     const currentMessages = activeChatId ? (chats[activeChatId] || {
@@ -448,7 +448,6 @@ export default function ChatsPage() {
         if(!el) return;
         if (el){
             const isNearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 200;
-            console.log(isNearBottom)
 
             if (isNearBottom) {
                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -590,10 +589,9 @@ export default function ChatsPage() {
 
         const handleSeenUpdate = (data) =>{
             const {chatId} = data;
-            if (!chats[chatId]?.length) return;
+            
             setChats( prev => {
                 const chat = prev[chatId];
-
                 return {
                     ...prev,
                     [chatId]:{
