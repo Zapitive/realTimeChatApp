@@ -426,14 +426,7 @@ export default function ChatsPage() {
         usersRef.current = users;
         activeChatRef.current = activeChatId;
 
-        const el = containerRef.current;
-        if (el){
-            const isNearBottom =
-                el.scrollHeight - el.scrollTop - el.clientHeight < 400;
-
-            if (isNearBottom) {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }}
+        
 
         return () => controller.abort();
     },[activeChatId]);
@@ -447,6 +440,21 @@ export default function ChatsPage() {
             });
         }, 50);
     }, [activeChatId]);
+
+    useEffect(()=>{
+        
+        const el = containerRef.current;
+
+        if(!el) return;
+        if (el){
+            const isNearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 200;
+            console.log(isNearBottom)
+
+            if (isNearBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }
+        }
+    },[chats[activeChatId]?.messages])
 
     //getting all chats
 
