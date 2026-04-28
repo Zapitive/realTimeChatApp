@@ -1,55 +1,59 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import UserSidebar from '../components/UserSidebar';
 import ChatWindow from '../components/ChatWindow';
 import MobileOverlay from '../components/MobileOverlay';
 import { useAxiosPrivate } from '../api/axiosPrivate';
 import { useAuth } from '../context/authContext';
 import { useSocketWithAuth } from '../socket/useSocketWithAuth';
+import toast from 'react-hot-toast';
 
-
+// ─── Utility ────────────────────────────────────────────────────────────────
+ 
+// Converts a raw ISO timestamp into a HH:MM display string.
+const formatTimestamp = (isoString) =>
+    new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+ 
+// Normalises a raw message from the server into the shape used by the UI.
+const formatMessage = (msg) => ({
+    ...msg,
+    id: msg._id ?? msg.id,
+    text: msg.content ?? msg.text,
+    timestamp: formatTimestamp(msg.createdAt ?? msg.timestamp),
+});
 
 export default function ChatsPage() {
 
     const { accessToken } = useAuth();
     const api = useAxiosPrivate();
     const socket = useSocketWithAuth();
+
     // State Management
+    
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
-    const [searchLoading, setSearchLoading] = useState(false)
     const [activeChatId, setActiveChatId] = useState(null);
     const [showSidebar, setShowSidebar] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
-    const [chats, setChats] = useState({
-        // 1: [
-        // { id: 1, sender: 'Sarah Johnson', text: 'Hey! How are you doing?', timestamp: '10:30 AM', isOwn: false },
-        // { id: 2, sender: 'You', text: 'I\'m doing great! Just working on some projects.', timestamp: '10:31 AM', isOwn: true },
-        // { id: 3, sender: 'Sarah Johnson', text: 'That sounds amazing! Tell me more 😊', timestamp: '10:32 AM', isOwn: false },
-        // { id: 4, sender: 'You', text: 'Building a chat app with React and Tailwind CSS', timestamp: '10:33 AM', isOwn: true },
-        // ],
-        // 2: [
-        // { id: 1, sender: 'Alex Chen', text: 'Meeting at 2 PM?', timestamp: '2:15 PM', isOwn: false },
-        // { id: 2, sender: 'You', text: 'Sure! I\'ll be there', timestamp: '2:16 PM', isOwn: true },
-        // ],
-        // 3: [
-        // { id: 1, sender: 'Emma Davis', text: 'Did you see the latest update?', timestamp: '3:45 PM', isOwn: false },
-        // ],
-    });
-
-    // User Data
-    const [users, setUsers] = useState([
-        // example User from backend
-        // { id: 1, users:{name: 'Sarah Johnson', status: 'online', lastMessage: 'That sounds amazing! Tell me more 😊'} },
-        // { id: 2, name: 'Alex Chen', status: 'online', avatar: '👨‍💻', lastMessage: 'Sure! I\'ll be there' },
-    ]);
-
     const [isTyping, setIsTyping] = useState(false);
-    const typingTimeoutRef = useRef(null);
+    const [appError, setAppError] = useState(null);
 
-    const usersRef = useRef(users);
-    const activeChatRef = useRef(activeChatId);
-    const containerRef = useRef(null);
-    const messagesEndRef = useRef(null);
+    /* chats example
+        chatId:{
+            messages: [
+                id: 1234,
+                isOwn: true,
+                timeStamp: Date(),
+                msgStatus: 'sent',
+                text: 'Hey'
+            ],
+            hasMore: true,
+            cursor: Date(),
+            isTyping: true}
+    */
+    const [chats, setChats] = useState({});
+
+    // users example { id: 1, users:{id: userId, name: 'Sarah Johnson', status: 'online', lastMessage: 'That sounds amazing! Tell me more 😊'} },
+    const [users, setUsers] = useState([]);
 
     const [loading, setLoading] = useState({
         chats: false,
@@ -58,38 +62,31 @@ export default function ChatsPage() {
         sendingMessage: false,
     });
 
-    const setLoadingState = (key, value) => {
-        setLoading(prev => ({ ...prev, [key]: value }));
-    };
+    // Refs
 
-    const [appError, setAppError] = useState(null);
+    const typingTimeoutRef = useRef(null);
+    const usersRef = useRef(users);
+    const activeChatRef = useRef(activeChatId);
+    const containerRef = useRef(null);
+    const messagesEndRef = useRef(null);
+    const prevScrollHeightRef = useRef(0);
+    
+    // Keep refs in sync with state so socket handlers always see fresh values.
+    useEffect(() => { usersRef.current = users; }, [users]);
+    useEffect(() => { activeChatRef.current = activeChatId; }, [activeChatId]);
 
-
-    // Computed Values
-    const filteredUsers = users;
-
-    // displaying current chat in chat window
-    console.log(chats[activeChatId]?.messages.length)
+    // derived values
     const currentUser = activeChatId ? users.find(u => u.id === activeChatId) : null;
     
-    const currentMessages = activeChatId ? (chats[activeChatId] || {
-        messages: [],
-        cursor: null,
-        hasMore: true,
-        isTyping: false
-    }) : {};
+    const currentMessages = activeChatId 
+        ? (chats[activeChatId] ?? { messages: [], cursor: null, hasMore: true, isTyping: false 
+    }) 
+        : {  messages: [], cursor: null, hasMore: false, isTyping: false };
 
     // Helper Functions
-    const getStatusColor = (status) => {
-        switch (status) {
-        case 'online':
-            return 'bg-green-500';
-        case 'offline':
-            return 'bg-gray-500';
-        default:
-            return 'bg-gray-500';
-        }
-    };
+
+    const setLoadingState = (key, value) =>
+        setLoading(prev => ({ ...prev, [key]: value }));
 
     const showError = (message, duration = 5000) => {
         setAppError(message);
@@ -97,243 +94,63 @@ export default function ChatsPage() {
         return () => clearTimeout(timer);
     };
 
-    // Event Handlers
-    const handleSelectUser = async (userId) => {
-        const exists = users.find(user => user.id === userId);
-        if (!exists && searchResults.length > 0){
-            const newUser = searchResults.find(u => u.id === userId);
-            const chatId = await createChatRoom(userId);
-            const updateUser = {
-                id : chatId,
-                users: newUser
-            }
-            setUsers(prev => {
-                return [...prev, updateUser];
-            });
-            socket.emit('joinRoom', {activeChatId: chatId});
-            setActiveChatId(chatId);
-        }else{
-            socket.emit('joinRoom', {activeChatId: exists.id});
-            socket.emit('messagesSeen', {chatId: exists.id});
-            setActiveChatId(exists.id);
-        } 
-        setSearchQuery('');
-        setSearchResults([]);
-        setShowSidebar(false);
+    const getStatusColor = (status) =>
+        status === 'online' ? 'bg-green-500' : 'bg-gray-500';
+
+    // updates the last-message preview in the sidebar
+
+    const updateLastMessage = (chatId, text) => {
+        setUsers(prev =>
+            prev.map(u =>
+                u.id === chatId
+                    ? { ...u, users: { ...u.users, lastMessage: text } }
+                    : u
+            )
+        );
     };
 
-    const handleSendMessage = (e) => {
-        e.preventDefault();
-        if (inputMessage.trim() && activeChatId) {
-            const tempId = (currentMessages.length || 0) + 1;
-            const newMessage = {
-                id: tempId,
-                text: inputMessage,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isOwn: true,
+    // Appends or prepends formatted messages into the chats map. 
+    const mergeMessages = (chatId, formatted, { prepend = false, cursor, hasMore }) => {
+        setChats(prev => {
+            const existing = prev[chatId] ?? { messages: [], cursor: null, hasMore: true };
+            return {
+                ...prev,
+                [chatId]: {
+                    ...existing,
+                    messages: prepend
+                        ? [...formatted, ...existing.messages]
+                        : [...existing.messages, ...formatted],
+                    cursor,
+                    hasMore,
+                },
             };
-            setChats(prev => {
-                const chat = prev[activeChatId] || {
-                    messages: [],
-                    cursor: null,
-                    hasMore: true
-                };
-
-                return {
-                    ...prev,
-                    [activeChatId]:{
-                        ...chat,
-                        messages: [...chat.messages, newMessage]
-                    }
-                }
-            });
-            socket.emit('sendMessage',{chatId: activeChatId, messageInp: inputMessage},(response)=>{
-                
-                if(response.status === "ok"){
-                    setUsers((prev)=>
-                        prev.map((chat) =>
-                        chat.id === activeChatId
-                        ? {
-                            ...chat,
-                            users: {
-                                ...chat.users,
-                                lastMessage: inputMessage
-                            }
-                            }
-                        : chat
-                    ));
-
-                    setChats(prev => {
-                        const chat = prev[activeChatId];
-                        if (!chat) return prev;
-
-                        return {
-                            ...prev,
-                            [activeChatId]: {
-                            ...chat,
-                            messages: chat.messages.map(msg =>
-                                msg.id === tempId
-                                ? { ...msg, id: response.msgId, msgStatus: response.msgStatus }
-                                : msg
-                            )
-                            }
-                        };
-                    });
-                }else{
-                    // can add features for not sent message
-                    console.log('no response')
-                }
-            });
-            
-            setInputMessage('');
-        }
+        });
     };
 
-    const handleBackClick = () => {
-        setActiveChatId(null);
-        setShowSidebar(true);
-    };
+    // API calls----------------------------------------------------------------------------------------------------------------------------------------
 
-    const handleOpenMessages = () => {
-        setShowSidebar(true);
-    };
-
-    const handleCloseSidebar = () => {
-        setShowSidebar(false);
-    };
-
-    const handleScroll = async() =>{
-        const container = containerRef.current;
-
-        if (!container) return;
-
-        if (loading.messages || !chats[activeChatId].hasMore) return;
-
-        if(container.scrollTop <= 0){
-            const chatId = activeChatRef.current
-            const params = { chatId };
-
-            if(chats[activeChatId]?.cursor){
-                params.cursorCreatedAt = chats[activeChatId].cursor;
-            }
-            const res = await getMessages(params);
-            const formatted = res.chatMessages
-                .slice()
-                .reverse()
-                .map((msg) => {
-                    const date = new Date(msg.timestamp);
-                    return {
-                        ...msg,
-                        timestamp: date.toLocaleTimeString([],{
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }),
-                    };    
-            });
-            console.log(formatted)
-            setChats((prev) =>{
-                const existing = prev[chatId] || {
-                    messages: [],
-                    cursor: null,
-                    hasMore: true,
-                };
-
-                return {
-                    ...prev,
-                    [chatId]: {
-                        messages:[...formatted, ...existing.messages],
-                        cursor: res.nextCursor,
-                        hasMore: !!res.nextCursor,
-                    },
-                };
-            });
-        }
-
-    }
-
-    const handleInputChange = (e) => {
-        setInputMessage(e.target.value);
-        const value = e.target.value;
-        setInputMessage(value);
-
-        if (!isTyping) {
-            setIsTyping(true);
-            socket.emit("typing", { chatId: activeChatId });
-        }
-
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
-
-        typingTimeoutRef.current = setTimeout(() => {
-            socket.emit("stopTyping", { chatId: activeChatId });
-            setIsTyping(false);
-        }, 1000);
-    };
-
-    // api calls
-
-    //Searching users according to email or username
-    const handleSearchChange = async(query) => {
-        // setSearchQuery(e.target.value);
-        try{
-            if(!query) return;
-            setSearchLoading(true);
-            const response = await api.get(
-                `/api/user/searchUser`,{
-                    params: { searchValue: query },
-                    withCredentials:true
-                }
-            );
-            if (response) {
-                setSearchLoading(false);
-                setSearchResults(response.data.users);
-            }
-        }catch(err){
-            console.log(err)
-        }
-        
-    };
-
-    // debouncing for rate limiting
-    useEffect(()=>{
-        const timer = setTimeout(()=>{
-            handleSearchChange(searchQuery);
-        },1000);
-
-        return () => clearTimeout(timer);
-
-    },[searchQuery]);
-
-    // creating chat room
     const createChatRoom = async (userId) => {
-        try{
+        try {
             const response = await api.post(
-                '/api/chats',{
-                    receiverId: userId
-                },{
-                  withCredentials:true
-                }
-            );
-
-            
-            return response.data.chatId
-        }catch(err){
-            console.log(err)
+                '/api/chats',
+                { receiverId: userId },
+                { withCredentials: true }
+                );
+            return response.data.chatId;
+        } catch (err) {
+            console.error('createChatRoom:', err);
         }
-    }
+    };
 
     // get chat messages 
-    
     const getMessages = async (params) =>{
         try{
             const response = await api.get(
                 '/api/messages',{
-                    params : params,
+                    params,
                     withCredentials: true
-                }
-            );
-            return response.data
+                });
+            return response.data;
         }catch(err){
             console.log(err)
         }
@@ -353,126 +170,234 @@ export default function ChatsPage() {
             const params = { chatId };
 
             if(!isInitial && chat?.cursor){
-                params.cursorCreatedAt = chat.cursor.createdAt;
+                params.cursorCreatedAt = chat.cursor;
             }
 
             const res = await getMessages(params);
 
-            if (controller.signal.aborted) return;
+            if (controller.signal.aborted || !res) return;
 
-            const formatted = res.chatMessages
-                .slice()
-                .reverse()
-                .map((msg) => {
-                    const date = new Date(msg.timestamp);
-                    return {
-                        ...msg,
-                        timestamp: date.toLocaleTimeString([],{
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        }),
-                    };    
-            });
-
-            setChats((prev) =>{
-                const existing = prev[chatId] || {
-                    messages: [],
-                    cursor: null,
-                    hasMore: true,
-                };
-
-                return {
-                    ...prev,
-                    [chatId]: {
-                        messages: isInitial
-                            ? formatted
-                            : [...formatted, ...existing.messages],
-                        cursor: res.nextCursor,
-                        hasMore: !!res.nextCursor,
-                    },
-                };
-            });
+            const formatted = res.chatMessages.slice().reverse().map(formatMessage);
             
+            mergeMessages(chatId, formatted, {
+                prepend: !isInitial,
+                cursor: res.nextCursor,
+                hasMore: !!res.nextCursor,
+            });
 
         }catch(err){
-            console.log(err);
+            console.error('fetchMessages:', err);
         }finally{
             setLoadingState('messages',false);
         }
     }
 
+    const handleSearchChange = async(query) => {
+        if(!query) return;
+        setLoadingState('search', true);
+        try{
+            const response = await api.get(
+                `/api/user/searchUser`,{
+                    params: { searchValue: query },
+                    withCredentials:true
+                }
+            );
+            setSearchResults(response.data.users);
+        }catch(err){
+            console.log(err)
+        }finally{
+            setLoadingState('search', false);
+        }
+        
+    };
+
+    // Event Handlers------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    const handleSelectUser = async (userId) => {
+        const exists = users.find(user => user.id === userId);
+
+        if (!exists && searchResults.length > 0){
+            const newUser = searchResults.find(u => u.id === userId);
+            const chatId = await createChatRoom(userId);
+            setUsers(prev =>  [...prev, { id: chatId, users: newUser }]);
+            socket.emit('joinRoom', {activeChatId: chatId});
+            setActiveChatId(chatId);
+        }else{
+            socket.emit('joinRoom', {activeChatId: exists.id});
+            socket.emit('messagesSeen', {chatId: exists.id});
+            setActiveChatId(exists.id);
+        } 
+
+
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowSidebar(false);
+    };
+
+    const handleSendMessage = (e) => {
+        e.preventDefault();
+        if (!inputMessage.trim()  || !activeChatId) return;
+
+        const tempId = (currentMessages.messages?.length ?? 0) + 1;
+        const newMessage = {
+            id: tempId,
+            text: inputMessage,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isOwn: true,
+        };
+        setChats(prev => {
+            const chat = prev[activeChatId] ?? { messages: [], cursor: null, hasMore: true, isTyping: false };
+            return { ...prev, [activeChatId]: { ...chat, messages: [...chat.messages, newMessage] } };
+        });
+        socket.emit('sendMessage',{ chatId: activeChatId, messageInp: inputMessage }, ( response )=>{
+                
+            if(response?.status === "ok"){
+                updateLastMessage(activeChatId, inputMessage);
+
+                setChats(prev => {
+                    const chat = prev[activeChatId];
+                    if (!chat) return prev;
+                    return {
+                        ...prev,
+                        [activeChatId]: {
+                        ...chat,
+                        messages: chat.messages.map(msg =>
+                            msg.id === tempId
+                            ? { ...msg, id: response.msgId, msgStatus: response.msgStatus }
+                            : msg
+                        )
+                        }
+                    };
+                });
+            }else{
+                // can add features for not sent message
+                console.warn('sendMessage: no ok response', response);
+            }
+        });
+            
+        setInputMessage('');
+    };
+
+    const handleInputChange = (e) => {
+        setInputMessage(e.target.value);
+        const value = e.target.value;
+
+        if (!isTyping) {
+            setIsTyping(true);
+            socket.emit("typing", { chatId: activeChatId });
+        }
+
+        clearTimeout(typingTimeoutRef.current);
+
+        typingTimeoutRef.current = setTimeout(() => {
+            socket.emit("stopTyping", { chatId: activeChatId });
+            setIsTyping(false);
+        }, 1000);
+    };
+
+    const handleBackClick = () => {
+        setActiveChatId(null);
+        setShowSidebar(true);
+    };
+
+    const handleOpenMessages = () => setShowSidebar(true);
+    const handleCloseSidebar = () => setShowSidebar(false);
+
+//--------------------------------------------------------infinite Scroll for  messages----------------------------------------------------------------------------
+    
+    const handleScroll = useCallback(async () => {
+        const container = containerRef.current;
+
+        if (!container) return;
+        if (loading.messages || !chats[activeChatId]?.hasMore) return;
+
+        if (container.scrollTop <= 0) {
+            prevScrollHeightRef.current = container.scrollHeight;
+            const controller = new AbortController();
+
+            await fetchMessages(controller, activeChatId, false);
+        }
+    }, [activeChatId, loading.messages, chats]);
+
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [handleScroll]);
 
-        container.addEventListener("scroll", handleScroll);
+    // Restore scroll position after older messages are prepended.
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container || !prevScrollHeightRef.current) return;
+        container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
+        prevScrollHeightRef.current = 0; 
+    }, [chats[activeChatId]?.messages?.length]);
 
-        return () => {
-            container.removeEventListener("scroll", handleScroll);
-        };
-    }, [chats[activeChatId], loading.messages]);
-
-//--------------------- try to combine the both useEffects---------------------------------------------------------------------------------------------------------
+    // Effects------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    // debounced user search
     useEffect(()=>{
-
-        const controller = new AbortController();
-        
+        const timer = setTimeout(()=> handleSearchChange(searchQuery), 1000);
+        return () => clearTimeout(timer);
+    },[searchQuery]);
+    
+    // load messages when the active chat changes.
+    useEffect(()=>{
         const chat = chats[activeChatId];
+        const controller = new AbortController();
         if (!chat || chat.messages.length === 0){
             fetchMessages(controller, activeChatId, true);
         }
-        
-        usersRef.current = users;
-        activeChatRef.current = activeChatId;
-
-        const el = containerRef.current;
-        if (el){
-            const isNearBottom =
-                el.scrollHeight - el.scrollTop - el.clientHeight < 400;
-
-            if (isNearBottom) {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }}
-
         return () => controller.abort();
     },[activeChatId]);
 
+    // Scroll to bottom when switching to a different chat
     useEffect(() => {
         if (!messagesEndRef.current) return;
-
         const timer = setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({
-            behavior: "auto"
-            });
+            messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
         }, 50);
+
+        return () => clearTimeout(timer);
     }, [activeChatId]);
 
-    //getting all chats
+    // Auto-scroll on new messages(only if already near the bottom)
+    useEffect(()=>{
+        const el = containerRef.current;
+        if(!el) return;
+        
+        const isNearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 200;
 
+        if (isNearBottom) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    },[chats[activeChatId]?.messages])
+
+    
+    // Initial chat list load.
     useEffect(()=>{
         const getChats = async()=>{
+            setLoading('chats', true);
             try{
-                setLoadingState('chats',true)
                 const response = await api.get(
                     '/api/chats',{
                     withCredentials:true
                     }
                 );
-                setUsers(response.data.chats || []);
+                setUsers(response.data.chats ?? []);
             }catch(err){
                 showError('Failed to load chats!');
-                console.log(err);
+                console.error('getChats:', err);
                 setUsers([]);
             }finally{
                 setLoadingState('chats', false)
             }
         }
-
         getChats();
-        
-    },[api]);
+    },[]);
 
-    // socket connection
+    // Socket setup & event handlers.
     useEffect(() =>{
         if(!socket.connected){
             socket.auth = {
@@ -481,246 +406,135 @@ export default function ChatsPage() {
             socket.connect();
         }
 
-        // socket receive method methods 
+        // socket receive method 
         const handleReceive = (msg) =>{
 
-            const date = new Date(msg.createdAt);
-
-            const formatted = date.toLocaleTimeString([],{
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
             const receiver = usersRef.current.find(u => u.id === msg.chatId);
+            if(!receiver) return;
+
+            
             const newMessage = {
-                id: msg._id,
-                text: msg.content,
-                timestamp: formatted,
+                ...formatMessage(msg),
                 isOwn: receiver.users.id !== String(msg.senderId),
             }
 
-            if (!newMessage.isOwn){
-                setChats(prev => {
-                    const chat = prev[msg.chatId] || {
-                        messages: [],
-                        cursor: null,
-                        hasMore: false
-                    };
-
-                    return {
-                        ...prev,
-                        [msg.chatId]:{
-                            ...chat,
-                            messages: [...chat.messages, newMessage]
-                        }
-                    }
-                });
-            }
+            setChats(prev => {
+                const chat = prev[msg.chatId] ?? { messages: [], cursor: null, hasMore: false, isTyping: false };
+                return { ...prev, [msg.chatId]: { ...chat, messages: [...chat.messages, newMessage] } };
+            });
             
         }
 
         const handleNotification = (msg) =>{
             socket.emit('messageReceived',{msgId: msg._id, chatId: msg.chatId, senderId: msg.senderId});
 
-            const date = new Date(msg.createdAt);
-
-            const formatted = date.toLocaleTimeString([],{
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            updateLastMessage(msg.chatId, msg.content);
             
-            
-
-            setUsers((prev) =>
-                prev.map((user) =>
-                user.id === msg.chatId
-                    ? {
-                        ...user,
-                        users: {
-                                ...user.users,
-                                lastMessage: msg.content
-                            }
-                    }
-                    : user
-                )
-            );
 
             if (String(activeChatRef.current) !== String(msg.chatId)){
-                const senderName = usersRef.current.find(u => u.id === String(msg.chatId))?.users?.name;
-                alert(`${msg.content} from ${senderName} at ${formatted}`);
+                const user = usersRef.current.find(u => u.id === String(msg.chatId));
+                const senderName = user?.users?.name;
+                toast(`${msg.content} from ${senderName} at ${formatTimestamp(msg.createdAt)}`, {
+                    duration: 3500, 
+                    position: 'top-center'
+                })
             }else{
                 socket.emit('messageSeen', {msgId: msg._id, senderId: msg.senderId, chatId: msg.chatId});
             }
-        }
+        };
 
-        const handleReceivedUpdate = async(data)=>{
+        // message status updates
 
-            const {msgId, chatId, senderId} = data;
-
-            
+        const updateMessageStatus = (chatId, predicate, status) => {
             setChats(prev => {
                 const chat = prev[chatId];
                 if (!chat) return prev;
-
                 return {
                     ...prev,
                     [chatId]: {
-                    ...chat,
-                    messages: (chat.messages || []).map(msg =>
-                        msg.id === String(msgId)
-                        ? { ...msg, msgStatus: 'received' }
-                        : msg
-                    )
-                    }
-                };
-            });
-        }
-
-        const handleSeenUpdate = (data) =>{
-            const {chatId} = data;
-            if (!chats[chatId]?.length) return;
-            setChats( prev => {
-                const chat = prev[chatId];
-
-                return {
-                    ...prev,
-                    [chatId]:{
                         ...chat,
-                        messages: (chat.messages || []).map( msg =>
-                            msg.isOwn === true
-                            ? {...msg, msgStatus: 'seen'}
-                            :msg
-                        )
-                    }
-                }
-            })
-            
-        }
-
-        const handleSeenMessage = (data) =>{
-            const {msgId, chatId} = data
-            setChats(prev => {
-                const chat = prev[chatId];
-                if (!chat) return prev;
-
-                return {
-                    ...prev,
-                    [chatId]: {
-                    ...chat,
-                    messages: (chat.messages || []).map(msg =>
-                        msg.id === String(msgId)
-                        ? { ...msg, msgStatus: 'seen' }
-                        : msg
-                    )
-                    }
+                        messages: (chat.messages ?? []).map(msg =>
+                            predicate(msg) ? { ...msg, msgStatus: status } : msg
+                        ),
+                    },
                 };
             });
-        }
+        };
+
+        const handleReceivedUpdate = async({ msgId, chatId })=> 
+            updateMessageStatus(chatId, msg => msg.id === String(msgId), 'received');
+
+        const handleSeenUpdate = ({ chatId }) =>
+            updateMessageStatus(chatId, msg => msg.isOwn, 'seen');
+
+        const handleSeenMessage = ({ msgId, chatId }) =>
+            updateMessageStatus(chatId, msg => msg.id === String(msgId), 'seen');
 
         // user status update
-        const handleOnline = ({userId}) =>{
-            setUsers( prev =>
-                prev.map(user =>
-                    user.users.id === userId
-                    ? {
-                        ...user,
-                        users:{
-                            ...user.users,
-                            status: 'online'
-                        }
-                    }: user
+
+        const handleOnline = ({ userId }) => {
+            setUsers(prev =>
+                prev.map(u =>
+                    u.users.id === userId ? { ...u, users: { ...u.users, status: 'online' } } : u
                 )
             );
-        }
+            
+            const chat = usersRef.current.find(u => u.users.id === userId);
+            if (chat) {
+                updateMessageStatus(
+                    chat.id,
+                    msg => msg.isOwn && msg.msgStatus === 'sent',
+                    'received'
+                );
+            }
+        };
 
-        const handleOffline = ({userId}) =>{
+
+        const handleOffline = ({userId}) =>
             setUsers( prev =>
-                prev.map(user =>
-                    user.users.id === userId
-                    ? {
-                        ...user,
-                        users:{
-                            ...user.users,
-                            status: 'offline'
-                        }
-                    }: user
+                prev.map(u =>
+                    u.users.id === userId ? { ...u, users:{ ...u.users, status: 'offline' } }: u
                 )
             );
-        }
 
-        const handleTyping = ({ chatId })=>{
-            setChats(prev => {
-                const chat = prev[chatId] || {};
+        const setTyping = (chatId, value) =>
+            setChats(prev => ({
+                ...prev,
+                [chatId]: { ...(prev[chatId] ?? {}), isTyping: value },
+            }));
 
-                return {
-                    ...prev,
-                    [chatId]:{
-                        ...chat,
-                        isTyping: true
-                    }
-                }
-            });
-        }
-        const handleStopTyping = ({ chatId })=>{
-            setChats(prev => {
-                const chat = prev[chatId] || {};
-
-                return {
-                    ...prev,
-                    [chatId]:{
-                        ...chat,
-                        isTyping: false
-                    }
-                }
-            });
-        }
+        
+        const handleTyping = ({ chatId }) => setTyping(chatId, true);
+        const handleStopTyping = ({ chatId }) => setTyping(chatId, false);
 
         socket.on('userOnline', handleOnline);
         socket.on('userOffline', handleOffline);
-        socket.on('receiveMessage',handleReceive);
+        socket.on('receiveMessage', handleReceive);
         socket.on('receiveNotification', handleNotification);
-        socket.on('receivedUpdate',handleReceivedUpdate);
-        socket.on('seenUpdate',handleSeenUpdate);
-        socket.on('seenSingleMessage',handleSeenMessage);
-        socket.on('typing',handleTyping);
-        socket.on('stopTyping',handleStopTyping);
+        socket.on('receivedUpdate', handleReceivedUpdate);
+        socket.on('seenUpdate', handleSeenUpdate);
+        socket.on('seenSingleMessage', handleSeenMessage);
+        socket.on('typing', handleTyping);
+        socket.on('stopTyping', handleStopTyping);
 
         return () =>{
             socket.off('userOnline', handleOnline);
             socket.off('userOffline', handleOffline);
-            socket.off('receiveMessage',handleReceive);
-            socket.off('receiveNotification',handleNotification);
-            socket.off('receivedUpdate',handleReceivedUpdate);
-            socket.off('seenUpdate',handleSeenUpdate);
-            socket.off('seenSingleMessage',handleSeenMessage);
-            socket.off('typing',handleTyping);
-            socket.off('stopTyping',handleStopTyping);
+            socket.off('receiveMessage', handleReceive);
+            socket.off('receiveNotification', handleNotification);
+            socket.off('receivedUpdate', handleReceivedUpdate);
+            socket.off('seenUpdate', handleSeenUpdate);
+            socket.off('seenSingleMessage', handleSeenMessage);
+            socket.off('typing', handleTyping);
+            socket.off('stopTyping', handleStopTyping);
             socket.disconnect();
         };
     },[accessToken]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex overflow-hidden relative">
-        {/* Animated background elements */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
 
         <style>{`
-            @keyframes blob {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -50px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
-            }
-            .animate-blob {
-            animation: blob 7s infinite;
-            }
-            .animation-delay-2000 {
-            animation-delay: 2s;
-            }
-            .animation-delay-4000 {
-            animation-delay: 4s;
-            }
             .scrollbar-hide::-webkit-scrollbar {
             display: none;
             }
@@ -730,16 +544,23 @@ export default function ChatsPage() {
             }
         `}</style>
 
+        {appError && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                    {appError}
+                    <button className="ml-3 font-bold" onClick={() => setAppError(null)}>✕</button>
+                </div>
+            )}
+
         {/* Mobile Overlay */}
         <MobileOverlay isVisible={showSidebar} onClose={handleCloseSidebar} />
 
         {/* Left Sidebar */}
         <UserSidebar
-            filteredUsers={filteredUsers}
+            filteredUsers={users}
             selectedUser={activeChatId}
             showSidebar={showSidebar}
             searchResults={searchResults}
-            searchLoading={searchLoading}
+            searchLoading={loading.search}
             searchQuery={searchQuery}
             getStatusColor={getStatusColor}
             setSearchQuery={setSearchQuery}
