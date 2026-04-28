@@ -76,7 +76,7 @@ const initSocket = (server) =>{
                     }
                 );
 
-                io.to(String(chatId)).emit('receiveMessage',newMessage);
+                socket.to(String(chatId)).emit('receiveMessage',newMessage);
                 io.to(String(receiverId)).emit('receiveNotification',newMessage);
             }
 
