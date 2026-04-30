@@ -6,15 +6,17 @@ const generateHash = async(plainPassword) =>{
         return hashedPassword;
     }catch(err){
         console.log("Password hashing failed");
+        throw err;
     }
 }
 
 const passwordCheck = async(plainPassword, hashedPassword) =>{
     try{
-        const isMatched = bcrypt.compare(plainPassword, hashedPassword);
+        const isMatched = await bcrypt.compare(plainPassword, hashedPassword);
         return isMatched; 
     }catch(err){
         console.log("Password comparision failed");
+        throw err;
     }
 }
 

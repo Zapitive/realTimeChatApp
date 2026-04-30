@@ -3,7 +3,7 @@ const { authenticateSocketToken } = require('../middlewares/authMiddleware');
 const message = require('../models/messageModel');
 const chatRoom = require('../models/chatRoomModel');
 const { setUserOnline, setUserOffline } = require('../services/userService');
-const {messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages, seenSingleMessage} = require('../services/messageService');
+const { messageReceivedUpdate, createNewMessage, receivedAllMessages, seenAllChatMessages, seenSingleMessage } = require('../services/messageService');
 const { getChatMembers } = require('../services/chatRoomService');
 
 let io;
@@ -41,7 +41,7 @@ const initSocket = (server) =>{
         socket.on('joinRoom', async(data) =>{
             if (socket.rooms.has(data.activeChatId)) return;
                 socket.join(data.activeChatId);
-        })
+        });
 
         // send message event
         socket.on('sendMessage', async (data, callback) => {
@@ -125,7 +125,6 @@ const initSocket = (server) =>{
         });
 
         socket.on('disconnect', async ()=>{
-            // console.log('User disconnected', socket.id);
             
             const userSockets = onlineUsers.get(userId); // set of userId
 
@@ -139,7 +138,7 @@ const initSocket = (server) =>{
                     socket.broadcast.emit("userOffline", {userId});
                 }
             }
-        })
+        });
 
     });
 
