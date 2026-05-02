@@ -10,6 +10,19 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 
+const issueToken = async(userId) =>{
+    await RefreshToken.deleteMany({userId: userId});
+    
+    const {token, refreshToken, hashedToken} = generateToken(userId);
+    
+    await RefreshToken.create({
+        userId: userId,
+        refreshToken: hashedToken,
+    });
+
+    return { token, refreshToken }
+}
+
 const signUp = async({username, email, password}) =>{
 
     if (!username || !email || !password){
@@ -38,13 +51,8 @@ const signUp = async({username, email, password}) =>{
         ...clean,
         password: hashedPassword
     });
-    const { token, refreshToken, hashedToken } = generateToken(user._id);
-    await RefreshToken.create({
-        userId: user._id,
-        refreshToken: hashedToken
-    });
 
-    return { token, refreshToken }
+    return issueToken(user._id);
 }
 
 const login = async({identifier, password}) =>{
@@ -63,17 +71,8 @@ const login = async({identifier, password}) =>{
     const isMatched = await passwordCheck(password, user.password);
 
     if(!isMatched) throw new AppError("Invalid credentials", 401);
-    
-    await RefreshToken.deleteMany({userId:user._id});
-    
-    const {token, refreshToken, hashedToken} = generateToken(user._id);
-    
-    await RefreshToken.create({
-        userId: user._id,
-        refreshToken: hashedToken,
-    });
 
-    return {token, refreshToken}
+    return issueToken(user._id);
 }
 
 const refresh = async({refreshTokenFromCookies}) => {
@@ -92,16 +91,7 @@ const refresh = async({refreshTokenFromCookies}) => {
     if(!storedToken)
         throw new AppError("Invalid token", 403)
 
-        await RefreshToken.deleteMany({ userId: storedToken.userId });
-
-        const {token, refreshToken, hashedToken: newHash} = generateToken(storedToken.userId);
-
-        await RefreshToken.create({
-            userId: storedToken.userId,
-            refreshToken: newHash
-        });
-
-        return {token, refreshToken}
+    return issueToken(storedToken.userId);
 }
 
 module.exports = {signUp, login, refresh}
