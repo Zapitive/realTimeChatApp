@@ -11,13 +11,7 @@ const generateHash = async(plainPassword) =>{
 }
 
 const passwordCheck = async(plainPassword, hashedPassword) =>{
-    try{
-        const isMatched = await bcrypt.compare(plainPassword, hashedPassword);
-        return isMatched; 
-    }catch(err){
-        console.log("Password comparision failed");
-        throw err;
-    }
+    return bcrypt.compare(plainPassword, hashedPassword);
 }
 
 

@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken')
-const crypto = require('crypto')
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const generateToken = (userId) =>{
     try{

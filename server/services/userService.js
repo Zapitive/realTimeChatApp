@@ -14,4 +14,8 @@ const setUserOffline = async (userId) =>{
     })
 }
 
-module.exports = {setUserOnline, setUserOffline}
+const findUser = async (filter) =>{
+    return await userInfo.findOne(filter).lean();
+}
+
+module.exports = {setUserOnline, setUserOffline, findUser}
