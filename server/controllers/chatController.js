@@ -1,85 +1,41 @@
-const { default: mongoose } = require("mongoose");
-const chatRoom = require("../models/chatRoomModel");
-const userInfo = require("../models/userInfoModel");
+const chatRoomService = require('../services/chatRoomService')
 
+const handleError = (err, res) => {
+    if (err.isOperational) {
+        return res.status(err.statusCode).json({ message: err.message });
+    }
+    console.error(err);
+    return res.status(500).json({ message: "Internal server error" });
+};
 
 const createChat = async(req,res) =>{
     try{
         const { receiverId } = req.body;
-        const receiverObjectId = new mongoose.Types.ObjectId(receiverId)
-        const members = [ receiverObjectId, req.user.id ];
-        // console.log(receiverObjectId, mongoose.Types.ObjectId.isValid(req.user.id))
+        const userId = req.user.id;
 
-        const existingChat = await chatRoom.findOne({
-            members: { $all: members },
-            isGroup: false
-        });
+        const result = await chatRoomService.createChat({receiverId, userId});
 
-        if (existingChat){
-            return res.status(200).json({message: 'Chat already exists', chatId: existingChat._id })
+        if (result?.existingChatId){
+            return res.status(200).json({message: 'Chat already exists', chatId: result.existingChatId });
         }
+        return res.status(201).json({message: 'new chatroom created', chatId: result.newChatRoomId });
 
-        const newChatRoom = await chatRoom.create({
-            members: members 
-        });
-
-        if (newChatRoom){
-            return res.status(201).json({message: 'new chatroom created', chatId: newChatRoom._id });
-        }
     }catch(err){
-        console.log(err)
+        handleError(err, res);
     }
 }
 
 const allChats = async (req, res) =>{
     try{
 
-        const userId = new mongoose.Types.ObjectId(req.user.id);
+        const userId = req.user.id
 
-        const results = await chatRoom.aggregate([
-            {
-                $match: {
-                    members : userId
-                }
-            },
-            {
-                $lookup: {
-                    from: "userinfos",
-                    localField: "members",
-                    foreignField: "_id",
-                    as: "users"
-                }
-            },
-            {
-                $addFields: {
-                    users: {
-                        $filter: {
-                        input: "$users",
-                        as: "u",
-                        cond: { $ne: ["$$u._id", userId] }
-                        }
-                    }
-                }
-            },
-            {
-                $unwind:"$users"
-            },
-            {
-                $project :{
-                    "_id":0,
-                    "id" : "$_id",
-                    "users.id": "$users._id",
-                    "users.name": "$users.username",
-                    "users.status":1,
-                    "users.lastMessage":"$lastMessage.text"
-                }
-            }
-        ])
-        res.status(200).json({message: "All chats received", chats:results})
+        const result = await chatRoomService.allChats({userId})
+        res.status(200).json({message: "All chats received", chats: result.chats})
 
 
     }catch(err){
-        console.log(err)
+        handleError(err, res)
     }
 }
 
