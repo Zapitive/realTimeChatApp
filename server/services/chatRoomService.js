@@ -70,7 +70,7 @@ const allChats = async ({userId}) => {
                 "users.lastMessage":"$lastMessage.text"
             }
         }
-    ])
+    ]);
 
     return chats
 }
