@@ -2,11 +2,26 @@ const chatRoom = require("../models/chatRoomModel");
 const userInfo = require("../models/userInfoModel");
 const { default: mongoose } = require("mongoose");
 
-const getChatMembers = async (chatId) => {
+const getChatMembers = (chatId) => {
     return chatRoom.findById(chatId,{
         _id:0,
         members:1
     })
+}
+
+const updateLastMessage = (chatId, text, senderId, createdAt) =>{
+    chatRoom.updateOne(
+        {_id:chatId},
+        {
+            $set:{
+                lastMessage:{
+                    text: text,
+                    senderId: senderId,
+                    createdAt: createdAt
+                    }
+                }
+        }
+    );
 }
 
 const createChat = async ({receiverId, userId}) =>{
@@ -75,4 +90,4 @@ const allChats = async ({userId}) => {
     return chats
 }
 
-module.exports = {getChatMembers, createChat, allChats}
+module.exports = {getChatMembers, createChat, allChats, updateLastMessage}

@@ -426,7 +426,6 @@ export default function ChatsPage() {
         }
 
         const handleNotification = (msg) =>{
-            socket.emit('messageReceived',{msgId: msg._id, chatId: msg.chatId, senderId: msg.senderId});
 
             updateLastMessage(msg.chatId, msg.content);
             
@@ -438,6 +437,7 @@ export default function ChatsPage() {
                     duration: 3500, 
                     position: 'top-center'
                 })
+                socket.emit('messageReceived',{msgId: msg._id, chatId: msg.chatId, senderId: msg.senderId});
             }else{
                 socket.emit('messageSeen', {msgId: msg._id, senderId: msg.senderId, chatId: msg.chatId});
             }
