@@ -44,8 +44,8 @@ const createChat = async ({receiverId, userId}) =>{
     return {newChatRoomId: newChatRoom._id}
 }
 
-const allChats = async ({userId}) => {
-    const userId = new mongoose.Types.ObjectId(userId);
+const allChats = async ({uId}) => {
+    const userId = new mongoose.Types.ObjectId(uId);
 
     const chats = await chatRoom.aggregate([
         {

@@ -28,10 +28,10 @@ const createChat = async(req,res) =>{
 const allChats = async (req, res) =>{
     try{
 
-        const userId = req.user.id;
+        const uId = req.user.id;
 
-        const result = await chatRoomService.allChats({userId});
-        return res.status(200).json({message: "All chats received", chats: result.chats});
+        const result = await chatRoomService.allChats({uId});
+        return res.status(200).json({message: "All chats received", chats: result});
 
 
     }catch(err){

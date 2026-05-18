@@ -9,8 +9,8 @@ const chatRoomService = require('../services/chatRoomService');
 const resolveMessageStatus = (msg, totalMembers) => {
     const othersCount = totalMembers - 1;
 
-    if (msg.seenBy.length === othersCount)     return 'seen';
-    if (msg.receivedBy.length === othersCount) return 'received';
+    if (msg.seenBy?.length === othersCount)     return 'seen';
+    if (msg.receivedBy?.length === othersCount) return 'received';
     return 'sent';
 };
 

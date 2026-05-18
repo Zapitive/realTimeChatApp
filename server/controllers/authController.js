@@ -36,11 +36,11 @@ const signUp = async(req,res) =>{
 const login = async (req,res) =>{
     try{
         const {identifier, password} = req.body;
-        const result = authService.login({identifier, password});
+        const result = await authService.login({identifier, password});
 
         res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
 
-        return res.status(200).json({message:"Login successful", token: (await result).token})
+        return res.status(200).json({message:"Login successful", token: result.token})
     }catch(err){
         handleError(err, res);
     }
@@ -50,8 +50,7 @@ const login = async (req,res) =>{
 const refresh = async (req,res) =>{
     try{
         const token = req.cookies.refreshToken;
-
-        const result = await authService.refresh(token);
+        const result = await authService.refresh({refreshTokenFromCookies:token});
 
         res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
 
